@@ -1,0 +1,96 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<style>[hidden]{display:none!important}</style>
+<title>Meghan Kulkarni · Skydio</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Jost:wght@300;400;500&family=JetBrains+Mono:wght@400;500&display=swap">
+<style>
+:root{
+  color-scheme:dark;
+  --bg:#060a24; --panel:#0b1133; --ink:#ece6d8; --muted:#a9a6b8; --line:rgba(236,230,216,.14); --hover:rgba(236,230,216,.06);
+  --sans:Jost,system-ui,-apple-system,"Segoe UI",sans-serif; --mono:"JetBrains Mono",ui-monospace,Menlo,monospace;
+  --w:300px;
+}
+html,body{height:100%}
+body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--sans);overflow:hidden}
+main{position:fixed;inset:0}
+iframe{position:absolute;inset:0;width:100%;height:100%;border:0;background:var(--bg)}
+
+/* menu button */
+.menu{position:fixed;z-index:20;top:50%;left:env(safe-area-inset-left,0px);transform:translateY(-50%);
+  display:flex;flex-direction:column;align-items:center;gap:12px;width:30px;padding:14px 0;cursor:pointer;
+  background:rgba(11,17,51,.9);color:var(--ink);border:1px solid var(--line);border-left:0;border-radius:0 8px 8px 0;
+  font:11px var(--mono);letter-spacing:.14em;text-transform:uppercase;backdrop-filter:blur(6px);
+  opacity:.5;transition:opacity .2s,left .3s cubic-bezier(.3,.1,.2,1)}
+.menu #menuLbl{writing-mode:vertical-rl;transform:rotate(180deg);white-space:nowrap}
+body.open .menu{left:calc(min(var(--w),86vw) + env(safe-area-inset-left,0px))}
+.menu:hover,.menu:focus-visible,body.open .menu{opacity:1}
+.bars{width:16px;height:10px;position:relative}
+.bars i{position:absolute;left:0;right:0;height:1.5px;background:currentColor;transition:transform .25s,opacity .2s}
+.bars i:nth-child(1){top:0}.bars i:nth-child(2){top:4.25px}.bars i:nth-child(3){bottom:0}
+body.open .bars i:nth-child(1){transform:translateY(4.25px) rotate(45deg)}
+body.open .bars i:nth-child(2){opacity:0}
+body.open .bars i:nth-child(3){transform:translateY(-4.25px) rotate(-45deg)}
+
+/* scrim + drawer */
+.scrim{position:fixed;inset:0;z-index:10;background:rgba(3,5,18,.55);opacity:0;pointer-events:none;transition:opacity .25s}
+body.open .scrim{opacity:1;pointer-events:auto}
+aside{position:fixed;z-index:15;top:0;bottom:0;left:0;width:min(var(--w),86vw);
+  background:var(--panel);border-right:1px solid var(--line);
+  transform:translateX(-100%);transition:transform .3s cubic-bezier(.3,.1,.2,1);
+  display:flex;flex-direction:column;overflow-y:auto;
+  padding:calc(28px + env(safe-area-inset-top,0px)) 0 calc(20px + env(safe-area-inset-bottom,0px)) env(safe-area-inset-left,0px)}
+body.open aside{transform:none}
+.who{padding:0 24px 18px;border-bottom:1px solid var(--line)}
+.who b{display:block;font-weight:400;font-size:24px;letter-spacing:.005em}
+.who span{display:block;margin-top:6px;color:var(--muted);font:11px var(--mono);letter-spacing:.14em;text-transform:uppercase}
+.grp{padding:18px 24px 6px;color:var(--muted);font:10.5px var(--mono);letter-spacing:.16em;text-transform:uppercase}
+nav a{display:flex;align-items:baseline;gap:12px;padding:11px 24px;color:var(--ink);text-decoration:none;font-size:18px;font-weight:300;border-left:2px solid transparent}
+nav a .n{font:11px var(--mono);color:var(--muted);letter-spacing:.08em;min-width:18px}
+nav a:hover{background:var(--hover)}
+nav a[aria-current="page"]{border-left-color:var(--ink);background:var(--hover);font-weight:400}
+nav a small{display:block;color:var(--muted);font-size:13px;font-weight:300;margin-top:2px}
+.foot{margin-top:auto;padding:18px 24px 0;color:var(--muted);font:10.5px var(--mono);letter-spacing:.12em;text-transform:uppercase}
+@media (prefers-reduced-motion:reduce){aside,.scrim,.bars i{transition:none}}
+</style>
+
+<button class="menu" id="menu" aria-expanded="false" aria-controls="drawer"><span class="bars" aria-hidden="true"><i></i><i></i><i></i></span><span id="menuLbl">Menu</span></button>
+<div class="scrim" id="scrim"></div>
+<aside id="drawer" aria-label="Sections">
+  <div class="who"><b>Meghan Kulkarni</b><span>Skydio · National Security</span></div>
+  <nav id="tabs">
+    <p class="grp">What I built for Skydio</p>
+    <a href="#ontology" data-src="builder.html#ontology"><span class="n">01</span><span>Ontology</span></a>
+    <a href="#builder" data-src="builder.html#builder"><span class="n">02</span><span>Product builder</span></a>
+    <a href="#generator" data-src="generator.html"><span class="n">03</span><span>Screen generator</span></a>
+    <a href="#kit" data-src="kit.html"><span class="n">04</span><span>UI kit</span></a>
+    <a href="#inventory" data-src="inventory.html"><span class="n">05</span><span>Inventory</span></a>
+    <a href="#prompts" data-src="prompts.html"><span class="n">06</span><span>Prompts</span></a>
+  </nav>
+  <p class="foot">Esc closes · links are shareable</p>
+</aside>
+<main id="views"></main>
+
+<script>
+(function(){
+  const tabs=[...document.querySelectorAll('#tabs a')], views=document.getElementById('views'), frames={};
+  const menu=document.getElementById('menu'), lbl=document.getElementById('menuLbl');
+  function setOpen(o){ document.body.classList.toggle('open',o); menu.setAttribute('aria-expanded',String(o)); lbl.textContent=o?'Close':cur(); if(o) (tabs.find(t=>t.hasAttribute('aria-current'))||tabs[0]).focus(); }
+  function cur(){ const a=tabs.find(t=>t.hasAttribute('aria-current')); return a? a.querySelector('span:not(.n)').firstChild.textContent.trim() : 'Menu'; }
+  function show(id){
+    const a=tabs.find(t=>t.getAttribute('href')==='#'+id)||tabs[0]; id=a.getAttribute('href').slice(1);
+    tabs.forEach(t=>{ if(t===a) t.setAttribute('aria-current','page'); else t.removeAttribute('aria-current'); });
+    if(!frames[id]){ const f=document.createElement('iframe'); f.src=a.dataset.src; f.title=a.textContent.trim(); f.setAttribute('allow','fullscreen'); f.setAttribute('allowfullscreen',''); views.appendChild(f); frames[id]=f; }
+    Object.entries(frames).forEach(([k,f])=>f.hidden=k!==id);
+    setOpen(false);
+    try{ frames[id].focus(); frames[id].contentWindow && frames[id].contentWindow.focus(); }catch(e){}
+  }
+  menu.addEventListener('click',()=>setOpen(!document.body.classList.contains('open')));
+  document.getElementById('scrim').addEventListener('click',()=>setOpen(false));
+  document.addEventListener('keydown',e=>{ if(e.key==='Escape') setOpen(false); });
+  window.addEventListener('hashchange',()=>show(location.hash.slice(1)));
+  show(location.hash.slice(1)||'ontology');
+})();
+</script>
+
+</html>

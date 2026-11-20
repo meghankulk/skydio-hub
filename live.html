@@ -1,0 +1,587 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<style>body{margin:0}[hidden]{display:none!important}img{max-width:100%}</style>
+<title>Skydio Live Ops</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&family=Space+Grotesk:wght@500;600&display=swap">
+<link rel="stylesheet" href="kit/skydio-ui.css">
+<style>
+/* Layout: control bar → live screen (scaled 1280-wide frame) → event log, principle checks, sitrep.
+   Single dark look on purpose: the product is dark-only. Component styles come from kit/skydio-ui.css. */
+:root{ color-scheme:dark; --page:#0b0c0d; --ink:#eceef0; --ink-2:#a7acb2; --ink-3:#6f757c; --rule:#24272b; --panel:#111315; }
+*{box-sizing:border-box}
+body{background:var(--page);color:var(--ink);font-family:var(--f-ui);font-size:14px;line-height:1.5;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));padding-block:0 56px}
+.wrap{max-width:1320px;margin:0 auto}
+:focus-visible{outline:2px solid var(--blue);outline-offset:2px}
+button{font:inherit;color:inherit;cursor:pointer}
+header.mast{padding-block:24px 14px;display:flex;flex-wrap:wrap;gap:6px 24px;align-items:flex-end;justify-content:space-between}
+header.mast > div{display:grid;gap:6px;min-width:0}
+.eyebrow{font-family:var(--f-mono);font-size:11px;letter-spacing:.12em;text-transform:uppercase;color:var(--ink-3)}
+h1{font-family:var(--f-display);font-weight:600;font-size:clamp(26px,3.4vw,36px);line-height:1.05;margin:0;letter-spacing:-.01em}
+.lede{margin:0;color:var(--ink-2);max-width:80ch}
+.lede a,.links a{color:var(--ink)}
+.links{font-size:12.5px;color:var(--ink-3);display:flex;gap:14px;flex-wrap:wrap}
+
+.bar{position:sticky;top:env(safe-area-inset-top,0px);z-index:6;background:color-mix(in srgb,var(--page) 94%,transparent);backdrop-filter:blur(6px);border:1px solid var(--rule);border-radius:6px;padding:8px 10px;display:flex;flex-wrap:wrap;gap:8px 12px;align-items:center}
+body::before{content:"";position:fixed;inset:0 0 auto;height:env(safe-area-inset-top,0px);z-index:10;background:var(--page)}
+.play{width:36px;height:32px;border-radius:4px;border:1px solid #2c3034;background:#15181a;display:grid;place-items:center}
+.play svg{width:16px;height:16px;fill:currentColor}
+.seg{display:inline-flex;border:1px solid #2c3034;border-radius:4px;overflow:hidden}
+.seg button{background:none;border:0;padding:5px 10px;color:var(--ink-2);font-size:12.5px}
+.seg button[aria-pressed="true"]{background:#24282c;color:var(--ink)}
+.seg-l{font-size:11.5px;color:var(--ink-3)}
+.ghost{background:#15181a;border:1px solid #2c3034;border-radius:4px;padding:5px 10px;color:var(--ink-2);font-size:12.5px}
+.ghost:hover{color:var(--ink);border-color:#3a3f44}
+label.chk{display:inline-flex;gap:6px;align-items:center;font-size:12.5px;color:var(--ink-2)}
+.simclock{margin-left:auto;font-family:var(--f-mono);font-size:12.5px;color:var(--ink-2);display:flex;gap:12px;align-items:center}
+.simclock b{color:var(--ink);font-weight:500}
+.lintpill{font-family:var(--f-mono);font-size:11.5px;padding:3px 8px;border-radius:3px;background:#173d22;color:#a9e6b9}
+.lintpill.bad{background:#5c1416;color:#ffc2c4}.lintpill.warn{background:#3d2f06;color:#ffe08a}
+
+details.scn{margin-top:10px;border:1px solid var(--rule);border-radius:6px;background:var(--panel)}
+details.scn summary{cursor:pointer;padding:9px 12px;font-size:13px;color:var(--ink-2);list-style:none;display:flex;gap:10px;align-items:center}
+details.scn summary::-webkit-details-marker{display:none}
+details.scn summary b{color:var(--ink);font-weight:600}
+details.scn summary::before{content:"▸";color:var(--ink-3)}
+details.scn[open] summary::before{content:"▾"}
+.scn .in{padding:0 12px 12px;display:grid;gap:10px}
+textarea#prompt{width:100%;min-height:60px;resize:vertical;background:#0b0c0d;border:1px solid #2c3034;border-radius:4px;color:var(--ink);font:14.5px/1.45 var(--f-ui);padding:9px 11px}
+textarea#prompt:focus{outline:none;border-color:var(--blue)}
+.row{display:flex;flex-wrap:wrap;gap:8px 10px;align-items:center}
+.presets{display:flex;flex-wrap:wrap;gap:6px}
+.presets button{background:#15181a;border:1px solid #262a2e;border-radius:4px;padding:4px 9px;color:var(--ink-2);font-size:12.5px}
+.presets button:hover{color:var(--ink);border-color:#3a3f44}
+.go{background:var(--blue);border:0;border-radius:4px;padding:7px 16px;font-weight:600;color:#fff;margin-left:auto}
+.go:disabled{opacity:.5;cursor:default}
+.status{font-family:var(--f-mono);font-size:12px;color:var(--ink-3)}
+.status .err{color:#ff9a9d}
+
+.stagebox{margin-top:10px;border:1px solid var(--rule);border-radius:6px;overflow:hidden;background:#000}
+#scaler{position:relative;overflow:hidden}
+#frame{position:absolute;left:0;top:0;transform-origin:0 0}
+
+.readouts{margin-top:14px;display:grid;gap:14px;grid-template-columns:minmax(0,1fr) minmax(0,1.1fr) minmax(0,.9fr)}
+@media (max-width:1100px){.readouts{grid-template-columns:minmax(0,1fr) minmax(0,1fr)}}
+@media (max-width:720px){.readouts{grid-template-columns:minmax(0,1fr)}}
+.pane-r{border:1px solid var(--rule);border-radius:6px;background:var(--panel);min-width:0;display:flex;flex-direction:column}
+.pane-r h2{margin:0;font-family:var(--f-display);font-size:16px;font-weight:600;padding:10px 12px;border-bottom:1px solid var(--rule);display:flex;justify-content:space-between;align-items:baseline;gap:10px}
+.pane-r h2 small{font-family:var(--f-mono);font-size:11.5px;color:var(--ink-3);font-weight:400}
+ol.log{list-style:none;margin:0;padding:0;max-height:430px;overflow:auto;font-size:12.5px}
+ol.log li{display:grid;grid-template-columns:62px 76px minmax(0,1fr);gap:8px;padding:6px 12px;border-bottom:1px solid #1b1e21}
+ol.log time{font-family:var(--f-mono);color:var(--ink-3);font-size:11.5px}
+ol.log .k{font-family:var(--f-mono);font-size:10.5px;letter-spacing:.04em;color:var(--ink-2);text-transform:uppercase}
+ol.log .k.Incident{color:#ffb3b5}.log .k.TAK{color:#ffe08a}.log .k.Aircraft{color:#9cc0ff}.log .k.Airspace{color:#ffb3b5}
+ol.log li span:last-child{color:var(--ink)}
+.checks{list-style:none;margin:0;padding:0;max-height:430px;overflow:auto}
+.checks li{border-bottom:1px solid var(--rule)}
+.checks button{all:unset;box-sizing:border-box;width:100%;display:grid;grid-template-columns:36px 50px minmax(0,1fr);gap:8px;padding:8px 12px;cursor:pointer;align-items:start}
+.checks button:hover{background:#15181b}
+.checks button:focus-visible{outline:2px solid var(--blue);outline-offset:-2px}
+.checks .id{font-family:var(--f-mono);font-size:11.5px;color:var(--ink-3);padding-top:2px}
+.verdict{font-family:var(--f-mono);font-size:10px;font-weight:600;letter-spacing:.06em;text-align:center;padding:3px 0;border-radius:2px}
+.v-pass{background:#173d22;color:#a9e6b9}.v-fail{background:#5c1416;color:#ffc2c4}.v-warn{background:#3d2f06;color:#ffe08a}.v-na{background:#1d2023;color:var(--ink-3)}
+.checks .t{font-size:13px}.checks .d{font-size:12px;color:var(--ink-2);margin-top:1px}
+.checks li.on button{background:#16191c}
+.sitrep{padding:12px;display:grid;gap:10px;align-content:start}
+.sitrep pre{margin:0;white-space:pre-wrap;font:13px/1.55 var(--f-mono);color:var(--ink);background:#0b0c0d;border:1px solid #1f2326;border-radius:4px;padding:10px 12px;min-height:120px}
+.sitrep p{margin:0;font-size:12px;color:var(--ink-3)}
+.foot{margin-top:24px;color:var(--ink-3);font-size:12px;max-width:95ch}
+</style>
+
+<div class="wrap">
+<header class="mast">
+  <div>
+    <div class="eyebrow">Live simulation · built on Skydio UI Kit</div>
+    <h1>Skydio Live Ops</h1>
+    <p class="lede">A running drone operation. Aircraft fly their routes and use battery, sensor alerts come in, and you claim, dispatch, track, publish to TAK and hand off. The 12 design principles are checked against the live screen every 2 seconds.</p>
+  </div>
+  <div class="links"><a href="inventory.html">Inventory</a><a href="kit.html" id="kitLink">UI Kit</a></div>
+</header>
+
+<div class="bar" role="toolbar" aria-label="Simulation">
+  <button type="button" class="play" id="play" aria-label="Pause simulation"><svg viewBox="0 0 24 24"><path d="M7 5h4v14H7zM13 5h4v14h-4z"/></svg></button>
+  <span class="seg" id="speedSeg" role="group" aria-label="Speed"><button type="button" data-v="1" aria-pressed="true">1×</button><button type="button" data-v="2" aria-pressed="false">2×</button><button type="button" data-v="4" aria-pressed="false">4×</button></span>
+  <span class="seg-l">View</span>
+  <span class="seg" id="viewSeg" role="group" aria-label="View"><button type="button" data-v="desktop" aria-pressed="true">Desktop</button><button type="button" data-v="controller" aria-pressed="false">Handheld</button></span>
+  <span class="seg-l">Map</span>
+  <span class="seg" id="mapSeg" role="group" aria-label="Map type"><button type="button" data-v="satellite" aria-pressed="true">Satellite</button><button type="button" data-v="topo" aria-pressed="false">Topo</button><button type="button" data-v="dark" aria-pressed="false">Dark</button><button type="button" data-v="street" aria-pressed="false">Street</button></span>
+  <button type="button" class="ghost" id="alertBtn">Trigger alert</button>
+  <button type="button" class="ghost" id="tfrBtn">Toggle TFR</button>
+  <label class="chk"><input type="checkbox" id="inject"> Inject violations</label>
+  <span class="simclock"><span>T+<b id="tplus">00:00</b></span><span class="lintpill" id="lintpill">—</span></span>
+</div>
+
+<details class="scn" id="scn">
+  <summary>Scenario: <b id="scnTitle">—</b><span class="status" id="status"></span></summary>
+  <div class="in">
+    <textarea id="prompt" spellcheck="false" aria-label="Describe a scenario"></textarea>
+    <div class="presets" id="presets"></div>
+    <div class="row">
+      <span class="seg-l">Resolver</span>
+      <span class="seg" id="resolverSeg" role="group" aria-label="Resolver"><button type="button" data-v="claude" id="resClaude" aria-pressed="false">Claude</button><button type="button" data-v="local" aria-pressed="true">Built-in parser</button></span>
+      <button type="button" class="go" id="startBtn">Start scenario</button>
+    </div>
+  </div>
+</details>
+
+<div class="stagebox"><div id="scaler"><div id="frame" class="sky"></div></div></div>
+
+<div class="readouts">
+  <section class="pane-r" aria-label="Event log"><h2>Event log <small id="logCount"></small></h2><ol class="log" id="log"></ol></section>
+  <section class="pane-r" aria-label="Principle checks"><h2>Principle checks <small id="score"></small></h2><ul class="checks" id="checks"></ul></section>
+  <section class="pane-r" aria-label="Sitrep"><h2>Sitrep <small id="sitrepVia"></small></h2>
+    <div class="sitrep"><div class="row"><button type="button" class="ghost" id="sitrepBtn">Write sitrep</button><button type="button" class="ghost" id="sitrepStop" hidden>Stop</button></div><pre id="sitrepOut">Press "Write sitrep" for a three-line situation report on the current state.</pre><p id="sitrepNote"></p></div>
+  </section>
+</div>
+<p class="foot">Simulation built on an outside reading of Skydio's public marketing screenshots. Not affiliated with or endorsed by Skydio. Every site, callsign and person is fictional; map and video areas are drawn stand-ins.</p>
+</div>
+
+<script src="kit/skydio-ui.js"></script>
+<script>
+"use strict";
+const K = SkydioUI; K.mount();
+const { esc, rng, hashStr, clamp, fmtAge } = K;
+const $ = s => document.querySelector(s);
+const AR = 1.5;                       // map pane height / width
+const OP = "SSG Dana Ruiz (you)";     // the operator you play
+const CENTERS = [[30,24],[70,32],[30,64],[70,70]];
+const byId = (arr, id) => arr.find(x => x.id === id);
+const air = a => K.ONTO.airborne.includes(a.state);
+const dist = (ax, ay, bx, by) => Math.hypot(bx - ax, (by - ay) * AR);
+
+let W = null;
+const ui = { view:"desktop", speed:1, running:true, inject:false, resolver:"local", results:[], lastLint:0, logDirty:true };
+let dirty = true, sample = null;
+
+/* ======================= world ======================= */
+function nearestSector(x, y){ return W.sectors.reduce((b, s) => dist(x, y, s.cx, s.cy) < dist(x, y, b.cx, b.cy) ? s : b, W.sectors[0]); }
+function log(kind, text, id){ W.log.unshift({ t:W.t, kind, text, id }); if (W.log.length > 250) W.log.pop(); ui.logDirty = true; }
+function toast(line1, line2, urgency = "info", tak = false){ W.toasts.unshift({ id:W.seq++, line1, line2, urgency, tak, until:W.t + 9 }); W.toasts = W.toasts.slice(0, 3); dirty = true; }
+function bump(){ dirty = true; }
+
+function buildWorld(spec){
+  const night = spec.aircraft.some(a => a.sensor === "thermal");
+  const R = rng(hashStr(spec.site.name + "|live"));
+  const names = spec.site.sectors.length >= 2 ? spec.site.sectors : [...spec.site.sectors, "Sector B"];
+  const sectors = names.slice(0, 4).map((name, i) => { const [cx, cy] = CENTERS[i]; return { name, cx, cy, pts:Array.from({ length:6 }, (_, k) => { const a = k / 6 * Math.PI * 2 + R() * .35, r = 11 + R() * 5; return [cx + Math.cos(a) * r, cy + Math.sin(a) * r / AR * 1.15]; }) }; });
+  W = { t:0, base: night ? 2 * 3600 + 14 * 60 : 14 * 3600 + 2 * 60, night, title:spec.title, site:spec.site.name, basemap:spec.basemap, sectors, docks:[], aircraft:[], missions:[], incidents:[], subjects:[], markers:[], airspace:[], toasts:[], log:[], dets:{}, flashes:[], focus:spec.focus, seq:100, R, nextAlert:35, nextDet:9, fleetPaused:false };
+  const sec = n => sectors.find(s => s.name === n) || sectors[hashStr(n) % sectors.length];
+  const ac = spec.aircraft.map(a => ({ ...a }));
+  while (ac.filter(a => a.state === "ready").length < 2 && ac.length < 4){ const used = new Set(ac.map(a => a.id)); const id = ["X10-A","X10-B","X10-C","X10-D"].find(x => !used.has(x)); ac.push({ id, dock:ac.some(x => x.dock === "Reserve Dock") ? "Reserve Dock 2" : "Reserve Dock", pilot:K.scenario.PILOTS[ac.length], state:"ready", battery:100, alt_ft:0, speed_mph:0, heading:0, sensor:ac[0]?.sensor || "color" }); }
+  W.docks = [...new Set(ac.map(a => a.dock))].map((d, i) => ({ id:d, x:5, y:16 + i * 15 }));
+  spec.missions.forEach(m => { if (m.type === "response" || m.type === "relief") return; const s = sec(m.sector);
+    W.missions.push({ id:m.id, name:m.name, type:m.type, state:m.state, attention:m.attention, reason:m.attention ? (spec.airspace.some(x => x.state === "active") ? "TFR active" : "Needs attention") : "", aircraft:m.aircraft, sector:s.name, route:s.pts.map(p => [...p]), wp:0, start:m.start, cadence:m.cadence, workOrder:m.workOrder, subject:null, incident:null }); });
+  ac.forEach((a, i) => {
+    const d = W.docks.find(x => x.id === a.dock); let st = a.state === "relieved" ? "flying" : a.state;
+    const m = W.missions.find(m => m.aircraft === a.id && m.state === "active");
+    if (st !== "ready" && !m && !spec.subjects.some(s => s.aircraft === a.id)) st = "ready";
+    const o = { id:a.id, dock:a.dock, pilot:a.pilot, state:st, battery:a.battery, alt:st === "ready" ? 0 : (a.alt_ft || 150), tAlt:a.alt_ft || 150, cruiseAlt:Math.max(120, a.alt_ft || 150), cruise:Math.max(10, a.speed_mph || 12), speed:0, heading:a.heading, sensor:a.sensor, x:d.x, y:d.y, mission:m ? m.id : null, warned:false, onScene:false, prev:null };
+    if (st === "launching") o.alt = 20;
+    if (air(o) && st !== "launching"){ if (m){ const k = Math.floor(R() * m.route.length); m.wp = (k + 1) % m.route.length; o.x = m.route[k][0]; o.y = m.route[k][1]; } else { const s = sectors[i % sectors.length]; o.x = s.cx + (R() - .5) * 8; o.y = s.cy + (R() - .5) * 8; } o.speed = o.cruise; }
+    if (st === "ready" && m){ m.aircraft = null; m.state = "paused"; }
+    W.aircraft.push(o); W.dets[o.id] = { person:0, vehicle:0, animal:0 };
+  });
+  spec.detections.forEach(d => { if (W.dets[d.aircraft]) W.dets[d.aircraft][d.class] += d.count; });
+  spec.incidents.forEach(x => { const s = sec(x.area); W.incidents.push({ id:x.id, title:x.title, state:x.state === "responding" ? "claimed" : x.state, source:x.source, sensor:x.sensor, born:-x.age_s, area:s.name, x:s.cx + (R() - .5) * 10, y:s.cy + (R() - .5) * 8, owner:x.claimedBy, mission:null, cls:/vehicle|car|truck|radar/i.test(x.title) ? "vehicle" : "person" }); });
+  spec.subjects.forEach(su => { const a = byId(W.aircraft, su.aircraft); if (!a || !air(a)) return; const sx = clamp(a.x + 4, 8, 90, 50), sy = clamp(a.y - 3, 10, 88, 50);
+    const pub = spec.markers.some(m => m.affiliation === su.affiliation && m.affiliation !== "friend");
+    W.subjects.push({ id:su.id, cls:su.class, aff:su.affiliation, mode:su.mode, aircraft:a.id, x:sx, y:sy, vx:0, vy:0, published:pub, incident:null });
+    let m = byId(W.missions, a.mission);
+    if (!m || m.type !== "overwatch"){ if (m){ m.aircraft = null; m.state = "paused"; } m = { id:"M-O" + (W.seq++), name:"Overwatch · " + nearestSector(sx, sy).name, type:"overwatch", state:"active", attention:false, reason:"", aircraft:a.id, sector:nearestSector(sx, sy).name, route:null, wp:0 }; W.missions.push(m); }
+    m.subject = su.id; a.mission = m.id; if (a.battery <= 25){ m.attention = true; m.reason = "Low battery"; a.warned = true; }
+    if (pub) W.markers.push({ id:"CoT-" + su.id, label:su.class, aff:su.affiliation, subject:su.id, x:sx, y:sy }); });
+  spec.markers.filter(m => !(m.affiliation !== "friend" && W.subjects.some(s => s.published && s.aff === m.affiliation))).forEach((m, i) => W.markers.push({ id:"CoT-S" + i, label:m.label, aff:m.affiliation, subject:null, x:22 + R() * 56, y:18 + R() * 60 }));
+  spec.airspace.filter(a => a.state === "active").slice(0, 1).forEach(a => activateTFR(a.name, true));
+  if (!W.aircraft.some(a => a.id === W.focus)) W.focus = W.aircraft[0].id;
+  log("Scenario", `Started: ${spec.title}`);
+  if (spec.toast) toast(spec.toast.line1, spec.toast.line2, spec.toast.urgency, true);
+  return W;
+}
+
+/* ======================= engine ======================= */
+function setState(a, s, why){ a.state = s; log("Aircraft", `${a.id} ${K.STATE_LABEL[s].toLowerCase()}${why ? " · " + why : ""}`, a.id); bump(); }
+function steer(a, tx, ty, dt){ const dx = tx - a.x, dy = (ty - a.y) * AR, d = Math.hypot(dx, dy); if (d > .05) a.heading = (Math.atan2(dx, -dy) * 180 / Math.PI + 360) % 360; const step = a.speed * .055 * dt; if (d <= step){ a.x = tx; a.y = ty; return true; } a.x += dx / d * step; a.y += dy / d * step / AR; return false; }
+function target(a, m){
+  if (!m) return null;
+  if (m.type === "patrol") return { x:m.route[m.wp][0], y:m.route[m.wp][1] };
+  const s = m.subject && byId(W.subjects, m.subject);
+  if (m.type === "relief") return s ? { x:s.x, y:s.y } : null;
+  if (s && s.aircraft === a.id) return { x:s.x + Math.cos(W.t * .45) * 3.2, y:s.y + Math.sin(W.t * .45) * 3.2 / AR, orbit:true };
+  if (m.type === "response"){ const inc = byId(W.incidents, m.incident); return inc ? { x:inc.x, y:inc.y } : null; }
+  return null;
+}
+function onArrive(a, m){
+  if (!m) return;
+  if (m.type === "patrol"){ m.wp = (m.wp + 1) % m.route.length; if (m.wp === 0) log("Mission", `${a.id} completed a ${m.sector} loop`, a.id); bump(); }
+  else if (m.type === "response" && !a.onScene){
+    const inc = byId(W.incidents, m.incident); if (!inc) return; a.onScene = true;
+    const s = { id:"SUB-" + (W.seq++), cls:inc.cls, aff:"unknown", mode:"track", aircraft:a.id, x:clamp(inc.x + 2, 8, 90, 50), y:inc.y, vx:(W.R() - .5) * .2, vy:(W.R() - .5) * .1, published:false, incident:inc.id };
+    W.subjects.push(s); m.subject = s.id; W.dets[a.id][inc.cls]++; W.flashes.push({ aircraft:a.id, cls:inc.cls, until:W.t + 6 });
+    log("Subject", `${a.id} on scene at ${inc.area}: 1 ${inc.cls} in view, tracking`, a.id); toast(`${a.id} on scene`, `1 ${inc.cls} in view · ${inc.area}`); bump();
+  } else if (m.type === "relief"){
+    const s = byId(W.subjects, m.subject); if (!s) return; const old = byId(W.aircraft, s.aircraft);
+    s.aircraft = a.id; m.type = "overwatch"; m.name = "Overwatch · " + nearestSector(s.x, s.y).name; m.attention = false; m.reason = "";
+    if (old){ const om = byId(W.missions, old.mission); if (om){ om.state = "done"; } old.mission = null; old.state = "relieved"; log("Mission", `Handoff complete: ${a.id} has ${s.id}, ${old.id} relieved`, a.id); returnHome(old, "relieved"); }
+    toast(`${a.id} has the subject`, `Overwatch continues · ${old ? old.id + " returning" : ""}`, "info", true); W.focus = a.id; bump();
+  }
+}
+function returnHome(a, why){
+  if (a.state === "returning") return;
+  const m = byId(W.missions, a.mission);
+  if (m){
+    if (m.type === "patrol"){ m.state = "paused"; m.aircraft = null; m.attention = true; m.reason = `${a.id} returned · needs an aircraft`; }
+    else { const s = m.subject && byId(W.subjects, m.subject);
+      if (s && s.aircraft === a.id){ s.aircraft = null; toast(`${s.id} unwatched`, `${a.id} left · dispatch an aircraft to keep eyes on it`, "action"); log("Subject", `${s.id} unwatched: ${a.id} left`, s.id); }
+      if (m.type === "response"){ const inc = byId(W.incidents, m.incident); if (inc && inc.state === "responding"){ inc.state = "claimed"; inc.mission = null; } }
+      m.state = "done"; }
+  }
+  a.mission = null; a.onScene = false; a.tAlt = a.cruiseAlt; setState(a, "returning", why);
+}
+function land(a){ a.alt = 0; a.speed = 0; a.warned = false; a.mission = null; setState(a, "ready", "landed at " + a.dock); }
+
+function tick(dt){
+  W.t += dt;
+  for (const a of W.aircraft){
+    const m = byId(W.missions, a.mission);
+    a.alt += clamp(a.tAlt - a.alt, -25 * dt, 25 * dt, 0);
+    if (a.state === "ready"){ a.battery = Math.min(100, a.battery + .9 * dt); a.speed = 0; a.tAlt = 0; const d = byId(W.docks, a.dock); a.x = d.x; a.y = d.y; continue; }
+    a.battery = Math.max(0, a.battery - (a.state === "holding" ? .06 : .11) * dt);
+    if (a.state === "holding"){ a.speed = 0; }
+    else if (a.state === "returning"){ a.speed = a.cruise * 1.3; const d = byId(W.docks, a.dock); if (steer(a, d.x, d.y, dt)){ a.tAlt = 0; a.speed = 0; if (a.alt < 3) land(a); } }
+    else {
+      if (a.state === "launching"){ a.tAlt = a.cruiseAlt; a.speed = a.cruise * .6; if (a.alt >= a.cruiseAlt * .6) setState(a, "flying", "airborne"); }
+      else a.speed = m && (m.type === "response" || m.type === "relief") && !a.onScene ? a.cruise * 1.8 : a.cruise;
+      const tg = target(a, m);
+      if (tg){ if (steer(a, tg.x, tg.y, dt) && !tg.orbit) onArrive(a, m); else if (tg.orbit && m.type === "relief") onArrive(a, m); }
+      else a.speed = 0;
+      if (m && m.type === "relief"){ const s = byId(W.subjects, m.subject); if (s && dist(a.x, a.y, s.x, s.y) < 4) onArrive(a, m); }
+    }
+    if (air(a) && a.state !== "returning"){
+      if (a.battery <= 25 && !a.warned){ a.warned = true; if (m){ m.attention = true; m.reason = "Low battery"; } const mins = Math.max(1, Math.round((a.battery - 12) / .11 / 60)); toast("Prepare relief drone", `${a.id} will need relief in ${mins} min`, "action"); log("Aircraft", `${a.id} battery ${Math.round(a.battery)}%: relief needed`, a.id); bump(); }
+      if (a.battery <= 12) returnHome(a, "low battery, auto return");
+    }
+  }
+  for (const s of W.subjects){ s.vx = clamp(s.vx + (W.R() - .5) * .05 * dt, -.2, .2, 0); s.vy = clamp(s.vy + (W.R() - .5) * .05 * dt, -.13, .13, 0); s.x += s.vx * dt; s.y += s.vy * dt; if (s.x < 9 || s.x > 89) s.vx *= -1; if (s.y < 11 || s.y > 87) s.vy *= -1; s.x = clamp(s.x, 8, 90, 50); s.y = clamp(s.y, 10, 88, 50); }
+  for (const mk of W.markers) if (mk.subject){ const s = byId(W.subjects, mk.subject); if (s){ mk.x = s.x; mk.y = s.y; } }
+  if (W.t >= W.nextAlert){ W.nextAlert = W.t + 70 + W.R() * 60; if (W.incidents.filter(i => i.state !== "resolved").length < 2) newAlert(); }
+  if (W.t >= W.nextDet){ W.nextDet = W.t + 14 + W.R() * 18; patrolDetection(); }
+  const nT = W.toasts.length, nF = W.flashes.length;
+  W.toasts = W.toasts.filter(t => t.until > W.t); W.flashes = W.flashes.filter(f => f.until > W.t);
+  if (W.toasts.length !== nT || W.flashes.length !== nF) bump();
+}
+function newAlert(){
+  const SRC = [["IDS","Intrusion alarm","gate sensor","person"],["Radar","Radar track","perimeter radar","vehicle"],["VMS","Camera analytics","camera 4","person"],["Fence","Fence vibration","fence sensor","person"]];
+  const [src, title, sens, cls] = SRC[Math.floor(W.R() * SRC.length)]; const s = W.sectors[Math.floor(W.R() * W.sectors.length)];
+  const inc = { id:"INC-" + (4400 + W.seq++), title:`${title} · ${s.name}`, state:"new", source:src, sensor:`${s.name} ${sens}`, born:W.t, area:s.name, x:clamp(s.cx + (W.R() - .5) * 12, 10, 88, 50), y:clamp(s.cy + (W.R() - .5) * 10, 12, 86, 50), owner:null, mission:null, cls };
+  W.incidents.push(inc); toast(title, `${s.name} · ${src} · unclaimed`, "action"); log("Incident", `${inc.id} ${title} at ${s.name} (${src})`, inc.id); bump();
+}
+function patrolDetection(){
+  const fl = W.aircraft.filter(a => a.state === "flying" && byId(W.missions, a.mission)?.type === "patrol"); if (!fl.length) return;
+  const a = fl[Math.floor(W.R() * fl.length)]; const r = W.R(); const cls = r < .4 ? "person" : r < .75 ? "vehicle" : "animal";
+  W.dets[a.id][cls]++; W.flashes.push({ aircraft:a.id, cls, until:W.t + 6 });
+  log("Detection", cls === "animal" ? `${a.id} saw an animal · no action` : `${a.id} detected 1 ${cls} on patrol`, a.id); bump();
+}
+function activateTFR(name, initial){
+  const s = W.sectors[Math.min(1, W.sectors.length - 1)];
+  W.airspace = [{ id:"AS-1", name:name || "TFR · " + s.name, sector:s.name, pts:s.pts.map(p => [p[0] + 2.5, p[1] + 1.5]) }];
+  W.missions.filter(m => m.sector === s.name && m.state !== "done").forEach(m => { m.attention = true; m.reason = "TFR active · held";
+    const a = byId(W.aircraft, m.aircraft); if (a && air(a) && a.state !== "holding" && a.state !== "returning"){ a.prev = a.state; a.tfrHold = true; a.state = "holding"; log("Aircraft", `${a.id} holding · TFR over ${s.name}`, a.id); } });
+  log("Airspace", `TFR active over ${s.name}: patrols there held`); if (!initial) toast("TFR active", `${s.name}: patrols held`, "action"); bump();
+}
+function clearTFR(){
+  const s = W.airspace[0]; W.airspace = [];
+  W.missions.forEach(m => { if (/TFR/.test(m.reason)){ m.attention = false; m.reason = ""; } });
+  W.aircraft.forEach(a => { if (a.tfrHold && a.state === "holding"){ a.state = a.prev || "flying"; a.tfrHold = false; log("Aircraft", `${a.id} resumed · TFR lifted`, a.id); } });
+  log("Airspace", `TFR lifted over ${s ? s.sector : "sector"}`); toast("TFR lifted", "Held patrols resume"); bump();
+}
+
+/* ======================= operator actions ======================= */
+function nearestReady(x, y, minBatt, exclude){ return W.aircraft.filter(a => a.state === "ready" && a.battery >= minBatt && a.id !== exclude).sort((p, q) => { const dp = byId(W.docks, p.dock), dq = byId(W.docks, q.dock); return dist(dp.x, dp.y, x, y) - dist(dq.x, dq.y, x, y); })[0]; }
+function launchFor(a, m, why){ m.aircraft = a.id; m.state = "active"; m.attention = false; m.reason = ""; a.mission = m.id; a.tAlt = a.cruiseAlt; setState(a, "launching", why); W.focus = a.id; }
+const ACT = {
+  focus: id => { if (byId(W.aircraft, id)){ W.focus = id; bump(); } },
+  "focus-inc": id => { const inc = byId(W.incidents, id); const m = inc && byId(W.missions, inc.mission); if (m && m.aircraft){ W.focus = m.aircraft; bump(); } },
+  claim: id => { const inc = byId(W.incidents, id); if (!inc || inc.owner) return; inc.owner = OP; inc.state = "claimed"; log("Incident", `${inc.id} claimed by ${OP}`, inc.id); bump(); },
+  dispatch: id => {
+    const inc = byId(W.incidents, id); if (!inc || inc.state === "resolved" || inc.mission) return;
+    if (!inc.owner){ inc.owner = OP; log("Incident", `${inc.id} claimed by ${OP}`, inc.id); }
+    let a = nearestReady(inc.x, inc.y, 40), retask = false;
+    if (!a){ a = W.aircraft.filter(x => x.state === "flying" && byId(W.missions, x.mission)?.type === "patrol" && x.battery > 35).sort((p, q) => dist(p.x, p.y, inc.x, inc.y) - dist(q.x, q.y, inc.x, inc.y))[0]; retask = !!a; }
+    if (!a){ inc.state = "claimed"; toast("No aircraft available", "Every aircraft is busy or charging", "action"); log("Incident", `${inc.id}: no aircraft available to dispatch`, inc.id); bump(); return; }
+    if (retask){ const pm = byId(W.missions, a.mission); pm.state = "paused"; pm.aircraft = null; pm.attention = true; pm.reason = `${a.id} pulled for ${inc.id}`; }
+    const m = { id:"M-R" + (W.seq++), name:"Response · " + inc.area, type:"response", state:"active", attention:false, reason:"", aircraft:a.id, sector:inc.area, route:null, wp:0, incident:inc.id, subject:null };
+    W.missions.push(m); a.mission = m.id; a.onScene = false; inc.mission = m.id; inc.state = "responding";
+    log("Incident", `${inc.id} responding: ${a.id} dispatched${retask ? " (pulled off patrol)" : ""}`, inc.id);
+    if (a.state === "ready"){ a.tAlt = a.cruiseAlt; setState(a, "launching", `to ${inc.id}`); } W.focus = a.id; bump();
+  },
+  end: id => {
+    const inc = byId(W.incidents, id); if (!inc || !inc.owner || inc.state === "resolved") return;
+    inc.state = "resolved"; log("Incident", `${inc.id} resolved by ${inc.owner}`, inc.id);
+    const m = byId(W.missions, inc.mission);
+    W.subjects.filter(s => s.incident === inc.id && !s.published).forEach(s => { W.subjects = W.subjects.filter(x => x !== s); });
+    if (m){ const a = byId(W.aircraft, m.aircraft); m.state = "done"; if (a && a.mission === m.id){ a.mission = null; returnHome(a, "response ended"); } }
+    bump();
+  },
+  rth: id => { const a = byId(W.aircraft, id); if (a && air(a)) returnHome(a, "operator"); },
+  hold: id => { const a = byId(W.aircraft, id); if (!a || !air(a) || a.state === "returning") return; if (a.state === "holding"){ a.tfrHold = false; setState(a, a.prev || "flying", "resumed"); } else { a.prev = a.state; setState(a, "holding", "operator hold"); } },
+  launch: id => { const a = byId(W.aircraft, id); if (!a || a.state !== "ready") return;
+    let m = W.missions.find(x => x.type === "patrol" && !x.aircraft && x.state !== "done" && !/TFR/.test(x.reason));
+    if (!m){ const counts = W.sectors.map(s => W.missions.filter(x => x.sector === s.name && x.state === "active").length); const s = W.sectors[counts.indexOf(Math.min(...counts))]; m = { id:"M-P" + (W.seq++), name:s.name + " patrol", type:"patrol", state:"active", attention:false, reason:"", aircraft:null, sector:s.name, route:s.pts.map(p => [...p]), wp:0, cadence:"Every 30 mins" }; W.missions.push(m); }
+    launchFor(a, m, "patrol " + m.sector); },
+  "launch-mission": id => { const m = byId(W.missions, id); if (!m) return; const pref = byId(W.aircraft, m.aircraft); const a = pref && pref.state === "ready" ? pref : nearestReady(50, 50, 40);
+    if (!a){ toast("No aircraft ready", `${m.name} stays unassigned`, "action"); return; } launchFor(a, m, m.name); },
+  "fleet-pause": () => { W.aircraft.filter(a => air(a) && a.state !== "returning" && a.state !== "holding").forEach(a => { a.prev = a.state; a.state = "holding"; }); W.fleetPaused = true; log("Aircraft", "All drones paused by operator"); bump(); },
+  "fleet-resume": () => { W.aircraft.filter(a => a.state === "holding" && !a.tfrHold).forEach(a => { a.state = a.prev || "flying"; }); W.fleetPaused = false; log("Aircraft", "All drones resumed"); bump(); },
+  "fleet-descend": () => { W.aircraft.filter(air).forEach(a => { a.cruiseAlt = Math.max(60, a.cruiseAlt - 50); a.tAlt = Math.min(a.tAlt, a.cruiseAlt); }); log("Aircraft", "All drones descending 50 ft"); bump(); },
+  "fleet-return": () => { W.aircraft.filter(a => air(a)).forEach(a => returnHome(a, "fleet return")); },
+  mode: v => { const [sid, mode] = v.split("|"); const s = byId(W.subjects, sid); if (s && s.mode !== mode){ s.mode = mode; log("Subject", `${sid} mode: ${mode}`, sid); bump(); } },
+  aff: v => { const [sid, aff] = v.split("|"); const s = byId(W.subjects, sid); if (!s || s.aff === aff) return; s.aff = aff; const mk = W.markers.find(m => m.subject === sid); if (mk){ mk.aff = aff; toast("TAK marker updated", `${s.cls.toUpperCase()} · ${aff.toUpperCase()}`, "info", true); log("TAK", `${sid} marker now ${aff}`, sid); } else log("Subject", `${sid} marked ${aff}`, sid); bump(); },
+  publish: sid => { const s = byId(W.subjects, sid); if (!s || s.published) return; s.published = true; W.markers.push({ id:"CoT-" + sid, label:s.cls, aff:s.aff, subject:sid, x:s.x, y:s.y }); toast("Subject published to TAK", `${s.cls.toUpperCase()} · ${s.aff.toUpperCase()} · ${nearestSector(s.x, s.y).name}`, "info", true); log("TAK", `${sid} published as ${s.aff} ${s.cls}`, sid); bump(); },
+  relief: aid => { const a = byId(W.aircraft, aid); const s = W.subjects.find(x => x.aircraft === aid); if (!a || !s){ toast("Nothing to hand off", `${aid} isn't tracking a subject`); return; }
+    if (W.missions.some(m => m.type === "relief" && m.subject === s.id && m.state === "active")) return;
+    const r = nearestReady(s.x, s.y, 60, aid); if (!r){ toast("No relief available", "No ready aircraft above 60% battery", "action"); log("Mission", `Relief for ${aid} requested: none available`, aid); bump(); return; }
+    const m = { id:"M-L" + (W.seq++), name:`Relief · ${aid}`, type:"relief", state:"active", attention:false, reason:"", aircraft:r.id, sector:nearestSector(s.x, s.y).name, route:null, wp:0, subject:s.id };
+    W.missions.push(m); r.mission = m.id; r.tAlt = r.cruiseAlt; const eta = Math.max(1, Math.round(dist(5, 50, s.x, s.y) / (r.cruise * .055) / 60));
+    log("Mission", `Relief requested: ${r.id} to take ${s.id} from ${aid}`, r.id); toast(`${r.id} is en route`, `Arriving in ~${eta} min`, "info", true); setState(r, "launching", "relief for " + aid); }
+};
+
+/* ======================= render ======================= */
+const clockStr = () => { let s = Math.floor(W.base + W.t) % 86400; const h = Math.floor(s / 3600), m = Math.floor(s / 60) % 60, ss = s % 60; return `${String(h % 12 || 12).padStart(2, "0")}:${String(m).padStart(2, "0")}:${String(ss).padStart(2, "0")} ${h < 12 ? "AM" : "PM"}`; };
+const dets = id => Object.entries(W.dets[id] || {}).filter(([, n]) => n).map(([cls, count]) => ({ cls, count }));
+function incActions(i){
+  if (i.state === "new") return [{ label:"Claim", act:"claim", id:i.id }, { label:"Dispatch", variant:"blue", act:"dispatch", id:i.id }, { label:"End", act:"end", id:i.id, f:"close", disabled:true }];
+  if (i.state === "claimed") return [{ label:"Dispatch", variant:"blue", act:"dispatch", id:i.id }, { label:"End", act:"end", id:i.id, f:"close" }];
+  return [{ label:"End response", icon:"check", act:"end", id:i.id, f:"close" }];
+}
+function tileFooter(a){
+  const s = W.subjects.find(x => x.aircraft === a.id); const m = byId(W.missions, a.mission);
+  if (s){
+    const reliefOn = W.missions.some(x => x.type === "relief" && x.subject === s.id && x.state === "active");
+    return `<span class="lbl">${esc(s.id)}</span>${K.Segmented([{ label:"Track", on:s.mode === "track", act:"mode", id:s.id + "|track" }, { label:"Follow", on:s.mode === "follow", act:"mode", id:s.id + "|follow" }])}${K.AffiliationPicker(s.aff, { act:"aff", id:s.id })}${s.published ? `<span class="lbl">On TAK</span>` : K.Button({ label:"Publish", variant:"blue", act:"publish", id:s.id })}${reliefOn ? `<span class="lbl">Relief inbound</span>` : K.Button({ label:"Relief", icon:"swap", act:"relief", id:a.id })}`;
+  }
+  if (a.state === "ready") return `<span class="lbl">On dock</span>${K.Button({ label:"Launch patrol", variant:"blue", act:"launch", id:a.id, disabled:a.battery < 40 })}`;
+  if (m && m.type === "patrol") return `<span class="lbl">${esc(m.sector)} patrol · next waypoint ${m.wp + 1} of ${m.route.length}</span>`;
+  if (m && m.type === "response") return `<span class="lbl">Responding to ${esc(m.incident)}</span>`;
+  if (m && m.type === "relief") return `<span class="lbl">Relief en route to ${esc(m.subject)}</span>`;
+  return `<span class="lbl">${esc(K.STATE_LABEL[a.state])}</span>`;
+}
+function feedTileFor(a, noStop){
+  const s = W.subjects.find(x => x.aircraft === a.id); const fl = W.flashes.find(f => f.aircraft === a.id);
+  return K.FeedTile({ aircraft:a, focus:a.id === W.focus, rthAct:"rth", holdAct:"hold", focusAct:"focus", vidKey:a.id, noStop,
+    det: fl ? { id:"DET-" + a.id, cls:fl.cls, x:s ? 30 : 56, y:60 } : null,
+    sub: s ? { id:s.id, cls:s.cls, x:62, y:52, aff:s.published ? s.aff : null } : null, footer:tileFooter(a) });
+}
+function renderDesktop(){
+  const open = W.incidents.filter(i => i.state !== "resolved");
+  const incCards = open.map(i => K.IncidentCard({ id:i.id, title:i.title, state:i.state, source:i.source, sensor:i.sensor, age:fmtAge(W.t - i.born), ageKey:"inc:" + i.id, owner:i.owner, actions:incActions(i) })).join("");
+  const launching = W.aircraft.filter(a => a.state === "launching").map(a => K.LaunchCard({ aircraft:a, focus:a.id === W.focus, focusAct:"focus", note:byId(W.missions, a.mission)?.name, action:{ label:"Launching…", act:"focus", id:a.id } })).join("");
+  const live = W.missions.filter(m => m.state !== "done" && m.state !== "scheduled" && m.state !== "upcoming");
+  const attn = live.filter(m => m.attention), act = live.filter(m => !m.attention && m.aircraft && m.type !== "relief");
+  const card = (m, i, pill) => { const a = byId(W.aircraft, m.aircraft); const actions = [];
+    if (!m.aircraft && !/TFR/.test(m.reason)) actions.push({ label:"Assign", variant:"blue", act:"launch-mission", id:m.id });
+    if (a && m.reason === "Low battery" && W.subjects.some(s => s.aircraft === a.id) && !W.missions.some(x => x.type === "relief" && x.state === "active" && byId(W.subjects, x.subject)?.aircraft === a.id)) actions.push({ label:"Relief", icon:"swap", act:"relief", id:a.id });
+    const next = m.type === "patrol" ? `WP ${m.wp + 1}` : m.type === "overwatch" ? `Hold on ${m.subject}` : m.type === "response" ? (a && a.onScene ? "On scene" : "En route") : "";
+    return K.PatrolCard({ mission:{ ...m, next }, aircraft:a, dets:a ? dets(a.id) : [], focus:a && a.id === W.focus, focusAct:"focus", actions, pill }); };
+  const sched = W.missions.filter(m => m.state === "scheduled" || m.state === "upcoming").map(m => K.MissionItem({ mission:m, aircraftLabel:m.aircraft ? m.aircraft : "Unassigned", actions:[{ label:"Launch", variant:"blue", act:"launch-mission", id:m.id }] })).join("");
+  const ready = W.aircraft.filter(a => a.state === "ready").map(a => K.AssetItem({ aircraft:a, focus:a.id === W.focus, focusAct:"focus", actions:[{ label:a.battery < 40 ? "Charging" : "Launch", variant:a.battery < 40 ? "" : "blue", act:"launch", id:a.id, disabled:a.battery < 40 }] })).join("");
+  const list = K.Section("Incidents", open.length, incCards, { always:true, empty:"No open incidents. Sensors are quiet." })
+    + K.Section("Launching", "", launching)
+    + K.Section("Requires attention", attn.length, attn.map((m, i) => card(m, i, ui.inject && i === 0)).join(""))
+    + K.Section("Active", act.length, act.map((m, i) => card(m, i, ui.inject && !attn.length && i === 0)).join(""))
+    + K.Section("Scheduled", "", sched)
+    + K.Section("Ready on dock", "", ready);
+  const light = K.isLightMap(W.basemap);
+  const svg = W.sectors.map(s => K.svgSector(s.pts, light)).join("") + W.airspace.map(x => K.svgAirspace(x.pts, x.id)).join("")
+    + W.missions.filter(m => m.type === "patrol" && m.aircraft && m.state === "active").map(m => K.svgRoute(m.route, m.wp, light)).join("");
+  let ov = W.sectors.map(s => K.SectorLabel({ name:s.name, x:s.cx, y:s.cy + 14 })).join("");
+  W.missions.filter(m => m.type === "patrol" && m.aircraft && m.state === "active").forEach(m => m.route.forEach((p, i) => { ov += K.Waypoint({ n:i + 1, x:p[0], y:p[1], done:i < m.wp, entity:`${m.id}-wp${i + 1}` }); }));
+  ov += W.docks.map(d => K.DockMarker({ id:d.id, x:d.x, y:d.y, state:W.aircraft.some(a => a.dock === d.id && a.state === "ready") ? "ready" : "empty" })).join("");
+  ov += open.map(i => K.EventMarker({ id:i.id, kind:"alert", x:i.x, y:i.y, state:i.state, act:"focus-inc" })).join("");
+  ov += W.subjects.filter(s => !s.published).map(s => K.EventMarker({ id:s.id, kind:s.cls, type:"Subject", state:s.aircraft ? "tracking" : "lost", x:s.x, y:s.y, pk:"s:" + s.id })).join("");
+  ov += W.markers.map(m => K.CoTMarker({ id:m.id, aff:m.aff, x:m.x, y:m.y, label:m.label, pk:"m:" + m.id })).join("");
+  ov += W.aircraft.filter(a => a.state !== "ready").map(a => K.DroneMarker({ id:a.id, x:a.x, y:a.y, heading:a.heading, state:a.state, alt:a.alt, battery:a.battery, focus:a.id === W.focus, pk:"a:" + a.id, act:"focus" })).join("");
+  const feedAir = [...W.aircraft].sort((p, q) => (q.id === W.focus) - (p.id === W.focus) || W.subjects.some(s => s.aircraft === q.id) - W.subjects.some(s => s.aircraft === p.id) || air(q) - air(p)).slice(0, 2);
+  return K.TopBar({ site:W.site, module:"Flight Deck", clock:clockStr(), clockKey:"clock" })
+    + `<div class="d-body">${K.NavRail({ badge:open.filter(i => !i.owner).length })}${K.ListPane({ body:list, banner:ui.inject ? '<div class="vio-banner" data-inject></div>' : "" })}`
+    + K.MapPane({ basemap:W.basemap, seed:W.site, night:W.night, svg, dynamicSvg:dynamicSvg(), overlays:ov, toasts:W.toasts.map(t => K.AlertToast(t)).join(""), fleet:{ paused:W.fleetPaused } })
+    + `<section class="d-feeds" data-pane="feeds">${feedAir.map((a, i) => feedTileFor(a, ui.inject && i === 1)).join("")}</section></div>`;
+}
+function dynamicSvg(){
+  let s = W.aircraft.filter(a => a.state !== "ready").map(a => K.svgCone(a.x, a.y, a.heading, a.id === W.focus, AR / 1.15)).join("");
+  W.missions.filter(m => m.type === "relief" && m.state === "active").forEach(m => { const r = byId(W.aircraft, m.aircraft), sub = byId(W.subjects, m.subject); if (r && sub && r.state !== "ready") s += K.svgTether(r, sub); });
+  return s;
+}
+function renderController(){
+  const a = byId(W.aircraft, W.focus) || W.aircraft[0];
+  const s = W.subjects.find(x => x.aircraft === a.id);
+  const reliefM = s && W.missions.find(x => x.type === "relief" && x.subject === s.id && x.state === "active");
+  const reliever = reliefM && byId(W.aircraft, reliefM.aircraft);
+  const inc = W.incidents.find(i => i.state !== "resolved");
+  const fl = W.flashes.find(f => f.aircraft === a.id);
+  const mgrs = K.mgrs(a.id, W.site);
+  const isAir = air(a);
+  const toasts = W.toasts.slice(0, 2).map(t => t.tak ? K.IsrToast(t) : K.AlertToast(t)).join("");
+  const minimap = W.aircraft.filter(x => x.state !== "ready").map(x => K.DroneMarker({ id:x.id, x:x.x, y:x.y, heading:x.heading, state:x.state, focus:x.id === W.focus, pk:"a:" + x.id, small:true, act:"focus", comp:"DroneMarker.pip" })).join("")
+    + W.markers.map(m => K.CoTMarker({ id:m.id, aff:m.aff, x:m.x, y:m.y, label:m.label, pk:"m:" + m.id })).join("");
+  return `<div class="c-frame" data-aircraft-container="${esc(a.id)}" data-entity="${esc(a.id)}" data-type="Aircraft" data-comp="Controller.video" data-st="${a.state}">
+    <div data-imagery data-vid="${esc(a.id)}" style="position:absolute;inset:0;background:${K.videoBg(a.id + "c", a.sensor)};background-size:160% 160%"></div>
+    ${isAir && fl ? K.Reticle({ id:"DET-" + a.id, cls:fl.cls, x:s ? 34 : 50, y:62 }) : ""}
+    ${isAir && s ? K.BoundingBox({ id:s.id, cls:s.cls, x:62, y:50, w:190, h:110, aff:s.published ? s.aff : null }) : ""}
+    ${!isAir ? `<div class="onvid" data-overlay style="font-size:15px">${esc(a.id)} on ${esc(a.dock)} · <span data-telemetry ${K.attrs(K.bind(a.id, "battery", "%"))}>${Math.round(a.battery)}%</span> · launch from the right rail</div>` : ""}
+    ${K.FlightStrip(a, mgrs)}
+    ${K.ToolRail(s ? "scan" : "send")}
+    ${K.CaptureRail({ hold:isAir ? { act:"hold", id:a.id, icon:a.state === "holding" ? "play" : "pause", label:a.state === "holding" ? "Resume" : "Hold" } : a.battery >= 40 ? { act:"launch", id:a.id, icon:"play", label:"Launch" } : null, stop:isAir && !ui.inject ? { act:"rth", id:a.id } : null })}
+    ${ui.inject ? `<span class="t" data-touch data-control style="position:absolute;left:46%;top:44%;width:30px;height:30px;background:#ff2bd6;border-radius:15px" data-inject></span>` : ""}
+    ${isAir && s ? K.ShadowFlyout({ subject:{ id:s.id, mode:s.mode, aff:s.aff, published:s.published }, modeAct:"mode", affAct:"aff", publishAct:"publish", reliefAct:reliever ? null : "relief", aircraftId:a.id }) : ""}
+    ${inc ? K.IncidentToast({ id:inc.id, title:inc.title, state:inc.state, source:inc.source, age:fmtAge(W.t - inc.born), ageKey:"inc:" + inc.id, owner:inc.owner, actions:incActions(inc).map(x => ({ ...x, label:x.label === "End response" ? "End" : x.label })) }) : ""}
+    <div class="c-toasts">${toasts}</div>
+    ${isAir && s ? K.TargetReadout({ key:a.id, range:`${Math.round(rangeFt(a, s))} ft`, mgrs }) : ""}
+    ${K.Minimap({ basemap:W.basemap, seed:W.site, markers:minimap })}
+    ${reliever ? K.ReliefBar({ reliever }) : (s && s.published ? K.GridReadout({ mgrs:K.mgrs(s.id, W.site, "11S MT") }) : "")}
+  </div>`;
+}
+const rangeFt = (a, s) => Math.hypot(dist(a.x, a.y, s.x, s.y) * 40, a.alt);
+
+function fit(){
+  const sc = $("#scaler"), fr = $("#frame"); const H = ui.view === "controller" ? 720 : 760;
+  fr.style.width = "1280px"; fr.style.height = H + "px";
+  const s = Math.min(1, sc.clientWidth / 1280); fr.style.transform = `scale(${s})`; sc.style.height = (H * s) + "px"; fr.__scale = s;
+}
+function render(){
+  const fr = $("#frame"); const ae = document.activeElement; const keep = ae && fr.contains(ae) && ae.dataset.act ? [ae.dataset.act, ae.dataset.id] : null;
+  fit(); fr.innerHTML = ui.view === "controller" ? renderController() : renderDesktop(); dirty = false; fast();
+  if (keep){ const el = fr.querySelector(`[data-act="${CSS.escape(keep[0])}"][data-id="${CSS.escape(keep[1] || "")}"]`); if (el) el.focus({ preventScroll:true }); }
+  $("#scnTitle").textContent = W.title;
+}
+function fast(){
+  const fr = $("#frame");
+  K.updatePositions(fr, key => { const i = key.indexOf(":"); const k = key.slice(0, i), id = key.slice(i + 1);
+    if (k === "a"){ const a = byId(W.aircraft, id); return a && { x:a.x, y:a.y, h:a.heading }; }
+    if (k === "s"){ const s = byId(W.subjects, id); return s && { x:s.x, y:s.y }; }
+    if (k === "m"){ const m = byId(W.markers, id); return m && { x:m.x, y:m.y }; } return null; });
+  K.updateBinds(fr, (key, field) => {
+    if (field === "clock") return clockStr();
+    if (field === "age"){ const inc = byId(W.incidents, key.slice(4)); return inc ? fmtAge(W.t - inc.born) : null; }
+    const a = byId(W.aircraft, key); if (!a) return null;
+    if (field === "range"){ const s = W.subjects.find(x => x.aircraft === a.id); return s ? rangeFt(a, s) : null; }
+    return { battery:a.battery, alt:a.alt, speed:a.speed, heading:a.heading }[field];
+  });
+  const dyn = fr.querySelector('[data-layer="dynamic"]'); if (dyn) dyn.innerHTML = dynamicSvg();
+  fr.querySelectorAll("[data-vid]").forEach(el => { const a = byId(W.aircraft, el.dataset.vid); if (a) el.style.backgroundPosition = `${(a.x * 3).toFixed(1)}% ${(a.y * 3).toFixed(1)}%`; });
+  const t = Math.floor(W.t); $("#tplus").textContent = `${String(Math.floor(t / 60)).padStart(2, "0")}:${String(t % 60).padStart(2, "0")}`;
+  if (ui.logDirty) renderLog();
+}
+function renderLog(){
+  ui.logDirty = false;
+  const fmt = t => { const s = Math.floor(W.base + t) % 86400; return `${String(Math.floor(s / 3600)).padStart(2, "0")}:${String(Math.floor(s / 60) % 60).padStart(2, "0")}:${String(s % 60).padStart(2, "0")}`; };
+  $("#log").innerHTML = W.log.slice(0, 120).map(e => `<li><time>${fmt(e.t)}</time><span class="k ${esc(e.kind)}">${esc(e.kind)}</span><span>${esc(e.text)}</span></li>`).join("");
+  $("#logCount").textContent = `${W.log.length} events`;
+}
+
+/* ======================= checks ======================= */
+function runLint(){
+  const fr = $("#frame"); const keepOn = document.querySelector("#checks li.on")?.dataset.id;
+  ui.results = K.lint(fr, { surface:ui.view, focus:W.focus, aircraft:W.aircraft, scale:fr.__scale });
+  const r = ui.results, pass = r.filter(x => x.verdict === "pass").length, applic = r.filter(x => x.verdict !== "na").length, fail = r.filter(x => x.verdict === "fail").length, warn = r.filter(x => x.verdict === "warn").length;
+  $("#score").textContent = `${pass}/${applic} pass`;
+  const pill = $("#lintpill"); pill.textContent = fail ? `${fail} principle fail${fail > 1 ? "s" : ""}` : warn ? `${pass}/${applic} · ${warn} warn` : `${pass}/${applic} principles`; pill.className = "lintpill" + (fail ? " bad" : warn ? " warn" : "");
+  $("#checks").innerHTML = r.map((x, i) => { const name = K.PRINCIPLES.find(p => p[0] === x.id)[1];
+    return `<li data-i="${i}" data-id="${x.id}" class="${keepOn === x.id ? "on" : ""}"><button type="button"><span class="id">${x.id}</span><span class="verdict v-${x.verdict}">${x.verdict.toUpperCase()}</span><span><div class="t">${esc(name)}</div><div class="d">${esc(x.detail)}</div></span></button></li>`; }).join("");
+  document.querySelectorAll(".lint-hit").forEach(e => e.classList.remove("lint-hit"));
+  if (keepOn){ const res = r.find(x => x.id === keepOn); res && res.offenders.forEach(el => el.classList.add("lint-hit")); }
+}
+$("#checks").addEventListener("click", e => { const li = e.target.closest("li"); if (!li) return; const was = li.classList.contains("on");
+  document.querySelectorAll("#checks li.on").forEach(x => x.classList.remove("on")); document.querySelectorAll(".lint-hit").forEach(x => x.classList.remove("lint-hit"));
+  if (was) return; li.classList.add("on"); ui.results[+li.dataset.i].offenders.forEach(el => el.classList.add("lint-hit")); });
+
+/* ======================= sitrep ======================= */
+function stateSummary(){
+  const ac = W.aircraft.map(a => { const m = byId(W.missions, a.mission); return `${a.id} ${a.state} ${Math.round(a.battery)}% ${Math.round(a.alt)}ft${m ? " · " + m.name : ""}`; }).join("\n");
+  const inc = W.incidents.filter(i => i.state !== "resolved").map(i => `${i.id} ${i.title} · ${i.state} · ${i.owner || "unclaimed"} · ${fmtAge(W.t - i.born)} old`).join("\n") || "none";
+  const sub = W.subjects.map(s => `${s.id} ${s.aff} ${s.cls} · ${s.aircraft ? "watched by " + s.aircraft : "UNWATCHED"}${s.published ? " · on TAK" : ""}`).join("\n") || "none";
+  return { ac, inc, sub };
+}
+function localSitrep(){
+  const open = W.incidents.filter(i => i.state !== "resolved"), un = open.filter(i => !i.owner), low = W.aircraft.filter(a => air(a) && a.battery <= 25), lost = W.subjects.filter(s => !s.aircraft);
+  const lines = [];
+  if (un.length) lines.push(`- ${un.length} unclaimed incident${un.length > 1 ? "s" : ""}: ${un.map(i => i.title).join("; ")}. Claim and dispatch.`);
+  else if (open.length) lines.push(`- ${open.length} open incident${open.length > 1 ? "s" : ""}, all owned: ${open.map(i => `${i.id} ${i.state}`).join(", ")}.`);
+  else lines.push("- No open incidents. Perimeter sensors quiet.");
+  if (low.length || lost.length) lines.push(`- ${[...low.map(a => `${a.id} at ${Math.round(a.battery)}%, needs relief`), ...lost.map(s => `${s.id} unwatched`)].join("; ")}.`);
+  else { const fl = W.aircraft.filter(a => air(a)).length; lines.push(`- ${fl} of ${W.aircraft.length} aircraft airborne; batteries above 25%.`); }
+  const pub = W.subjects.filter(s => s.published); lines.push(pub.length ? `- ${pub.length} subject${pub.length > 1 ? "s" : ""} on TAK: ${pub.map(s => `${s.aff} ${s.cls}`).join(", ")}.` : `- Nothing published to TAK. ${W.airspace.length ? "TFR active over " + W.airspace[0].sector + "." : "No airspace limits."}`);
+  return lines.join("\n");
+}
+let sitCtl = null;
+$("#sitrepBtn").addEventListener("click", async () => {
+  const out = $("#sitrepOut");
+  if (!sample){ out.textContent = localSitrep(); $("#sitrepVia").textContent = "built-in"; $("#sitrepNote").textContent = "Claude isn't available in this view, so this summary comes from rules in the page."; return; }
+  const S = stateSummary(); sitCtl = new AbortController(); $("#sitrepStop").hidden = false; $("#sitrepBtn").disabled = true; out.textContent = "Thinking…";
+  const prompt = `You are the watch officer for a drone security operation. Write a situation report from the state below: exactly 3 lines, each starting with "- ", each under 24 words, most urgent first, plain text, no preamble. Name ids. Recommend one action if anything needs it.
+Time: ${clockStr()} at ${W.site}
+Aircraft:
+${S.ac}
+Open incidents:
+${S.inc}
+Subjects:
+${S.sub}
+Airspace: ${W.airspace.length ? "TFR active over " + W.airspace[0].sector : "none"}
+Recent events, newest first:
+${W.log.slice(0, 14).map(e => e.text).join("\n")}`;
+  try { await sample(prompt, { modelTier:"quick", cache:false, signal:sitCtl.signal, onText:({ text }) => { out.textContent = text; } }); $("#sitrepVia").textContent = "Claude"; $("#sitrepNote").textContent = `Written at ${clockStr()} sim time.`; }
+  catch (e){ if (e.code === "cancelled"){ out.textContent = e.text || "Stopped."; } else { out.textContent = localSitrep(); $("#sitrepVia").textContent = "built-in"; $("#sitrepNote").textContent = { not_granted:"Claude isn't allowed for this page, so this summary comes from rules in the page.", rate_limited:"Too many requests. Showing the built-in summary; try Claude again in a minute." }[e.code] || "Claude couldn't answer, so this is the built-in summary."; if (["not_granted","sampling_disabled","not_declared","capability_disabled","capability_removed"].includes(e.code)) sample = null; } }
+  finally { $("#sitrepStop").hidden = true; $("#sitrepBtn").disabled = false; }
+});
+$("#sitrepStop").addEventListener("click", () => sitCtl?.abort());
+
+/* ======================= scenario ======================= */
+const PRESETS = [["Base at night","Overnight at Fort Calder: three drones on patrol and an intrusion alarm just tripped at the motor pool."], ...K.scenario.PRESETS.slice(1)];
+function startSpec(spec, via){
+  buildWorld(spec); ui.view = spec.surface; setSeg("viewSeg", ui.view); setSeg("mapSeg", W.basemap);
+  $("#status").innerHTML = ` · ${esc(via)}`; render(); runLint(); ui.logDirty = true; renderLog();
+}
+async function startScenario(){
+  const prompt = $("#prompt").value.trim(); if (!prompt) return;
+  try { localStorage.setItem("slo.prompt", prompt); } catch {}
+  if (ui.resolver === "claude" && sample){
+    $("#startBtn").disabled = true; $("#status").innerHTML = " · resolving with Claude…";
+    try { const raw = await sample.json(K.scenario.claudePrompt(prompt), { modelTier:"quick" }); startSpec(K.scenario.normalize(raw).spec, "Claude"); }
+    catch (e){ startSpec(K.scenario.normalize(K.scenario.localResolve(prompt)).spec, "built-in parser"); $("#status").innerHTML += ` <span class="err">(Claude unavailable: ${esc(e.code || "error")})</span>`; if (["not_granted","sampling_disabled"].includes(e.code)){ sample = null; $("#resClaude").disabled = true; ui.resolver = "local"; setSeg("resolverSeg","local"); } }
+    finally { $("#startBtn").disabled = false; }
+  } else startSpec(K.scenario.normalize(K.scenario.localResolve(prompt)).spec, "built-in parser");
+}
+
+/* ======================= wiring ======================= */
+function setSeg(id, v){ document.querySelectorAll(`#${id} button`).forEach(b => b.setAttribute("aria-pressed", String(b.dataset.v === String(v)))); }
+function doAct(el){ const fn = ACT[el.dataset.act]; if (!fn || el.classList.contains("off")) return; fn(el.dataset.id); render(); }
+$("#frame").addEventListener("click", e => { const bm = e.target.closest("[data-basemap]"); if (bm){ W.basemap = bm.dataset.basemap; setSeg("mapSeg", W.basemap); render(); return; } const el = e.target.closest("[data-act]"); if (el) doAct(el); });
+$("#frame").addEventListener("keydown", e => { if (e.key !== "Enter" && e.key !== " ") return; const el = e.target.closest("[data-act]"); if (el){ e.preventDefault(); doAct(el); } });
+$("#play").addEventListener("click", () => { ui.running = !ui.running; $("#play").setAttribute("aria-label", ui.running ? "Pause simulation" : "Resume simulation"); $("#play").innerHTML = ui.running ? '<svg viewBox="0 0 24 24"><path d="M7 5h4v14H7zM13 5h4v14h-4z"/></svg>' : '<svg viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>'; });
+$("#speedSeg").addEventListener("click", e => { const b = e.target.closest("button"); if (!b) return; ui.speed = +b.dataset.v; setSeg("speedSeg", ui.speed); });
+$("#viewSeg").addEventListener("click", e => { const b = e.target.closest("button"); if (!b) return; ui.view = b.dataset.v; setSeg("viewSeg", ui.view); render(); runLint(); });
+$("#mapSeg").addEventListener("click", e => { const b = e.target.closest("button"); if (!b) return; W.basemap = b.dataset.v; setSeg("mapSeg", W.basemap); render(); });
+$("#resolverSeg").addEventListener("click", e => { const b = e.target.closest("button"); if (!b || b.disabled) return; ui.resolver = b.dataset.v; setSeg("resolverSeg", ui.resolver); });
+$("#alertBtn").addEventListener("click", () => { newAlert(); render(); });
+$("#tfrBtn").addEventListener("click", () => { W.airspace.length ? clearTFR() : activateTFR(); render(); });
+$("#inject").addEventListener("change", e => { ui.inject = e.target.checked; render(); runLint(); });
+$("#startBtn").addEventListener("click", startScenario);
+$("#prompt").addEventListener("keydown", e => { if ((e.metaKey || e.ctrlKey) && e.key === "Enter") startScenario(); });
+$("#presets").innerHTML = PRESETS.map((p, i) => `<button type="button" data-i="${i}">${esc(p[0])}</button>`).join("");
+$("#presets").addEventListener("click", e => { const b = e.target.closest("button"); if (!b) return; $("#prompt").value = PRESETS[+b.dataset.i][1]; startScenario(); });
+new ResizeObserver(() => fit()).observe($("#scaler"));
+
+setInterval(() => {
+  if (!W || !ui.running || document.hidden) return;
+  tick(.2 * ui.speed);
+  if (dirty) render(); else fast();
+  const now = performance.now(); if (now - ui.lastLint > 2000){ ui.lastLint = now; runLint(); }
+}, 200);
+
+let first = PRESETS[0][1]; try { first = localStorage.getItem("slo.prompt") || first; } catch {}
+$("#prompt").value = first;
+startSpec(K.scenario.normalize(K.scenario.localResolve(first)).spec, "built-in parser");
+(async () => { try { sample = window.claude ? await window.claude.use("sample") : null; } catch { sample = null; }
+  if (sample){ ui.resolver = "claude"; setSeg("resolverSeg", "claude"); } else { $("#resClaude").disabled = true; $("#resClaude").title = "Claude isn't available in this view"; } })();
+</script>
+
+</html>

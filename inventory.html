@@ -1,0 +1,1078 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<style>body{margin:0}[hidden]{display:none!important}img{max-width:100%}</style>
+<title>Skydio Defense UI Inventory</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&family=Space+Grotesk:wght@500;600;700&display=swap">
+<style>
+/* Layout: a field-manual style catalog. Dark stage throughout, because every surface being catalogued is dark.
+   Sections = Foundations → Shell → Lists → Map → Video/HUD → Flight controls → Alerts → Patterns. Each component = live specimen + anatomy + source. */
+:root{
+  color-scheme:dark;
+  /* page chrome */
+  --page:#0b0c0d; --ink:#eceef0; --ink-2:#a7acb2; --ink-3:#6f757c; --rule:#24272b;
+  /* recreated Skydio tokens (sampled by eye from marketing screenshots) */
+  --s-0:#0f0f10; --s-1:#171718; --s-2:#1f2021; --s-3:#2a2b2d; --s-4:#36383a; --s-line:#303234;
+  --t-1:#f2f2f2; --t-2:#a3a3a3;
+  --blue:#1a6cf0; --blue-deep:#0d3f8f; --red:#df2a2f; --red-deep:#5c1416; --green:#2a9a4a; --green-deep:#173d22;
+  --reticle:#1fe3a2; --amber:#f5b400; --amber-deep:#3d2f06; --purple:#9a5cf0;
+  /* MIL-STD-2525 / TAK affiliation fills */
+  --tak-hostile:#ff8080; --tak-friend:#80e0ff; --tak-unknown:#ffff80; --tak-neutral:#aaffaa;
+  --f-ui:"Inter",system-ui,-apple-system,"Segoe UI",sans-serif;
+  --f-display:"Space Grotesk","Inter",system-ui,sans-serif;
+  --f-mono:"IBM Plex Mono",ui-monospace,"SF Mono",Menlo,monospace;
+}
+*{box-sizing:border-box}
+body{background:var(--page);color:var(--ink);font-family:var(--f-ui);font-size:14px;line-height:1.5;
+  padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));padding-block:0 64px}
+.wrap{max-width:1240px;margin:0 auto}
+a{color:inherit}
+:focus-visible{outline:2px solid var(--blue);outline-offset:2px}
+
+/* masthead */
+header.mast{padding-block:40px 24px;border-bottom:1px solid var(--rule);display:grid;gap:14px}
+.eyebrow{font-family:var(--f-mono);font-size:11px;letter-spacing:.12em;text-transform:uppercase;color:var(--ink-3)}
+h1{font-family:var(--f-display);font-weight:600;font-size:clamp(30px,4.4vw,48px);line-height:1.05;margin:0;text-wrap:balance;letter-spacing:-.01em}
+.lede{max-width:68ch;color:var(--ink-2);margin:0}
+.meta{display:flex;flex-wrap:wrap;gap:8px 18px;font-family:var(--f-mono);font-size:12px;color:var(--ink-3)}
+.meta b{color:var(--ink-2);font-weight:500}
+
+nav.toc{position:sticky;top:env(safe-area-inset-top,0px);z-index:5;background:color-mix(in srgb,var(--page) 92%,transparent);backdrop-filter:blur(6px);border-bottom:1px solid var(--rule);padding-block:10px;margin-bottom:8px}
+body::before{content:"";position:fixed;inset:0 0 auto;height:env(safe-area-inset-top,0px);z-index:10;background:var(--page)}
+nav.toc ul{list-style:none;margin:0;padding:0;display:flex;gap:6px;overflow-x:auto;scrollbar-width:none}
+nav.toc a{display:block;white-space:nowrap;text-decoration:none;font-size:12.5px;padding:5px 10px;border:1px solid var(--rule);border-radius:4px;color:var(--ink-2)}
+nav.toc a:hover{color:var(--ink);border-color:var(--ink-3)}
+nav.toc a span{font-family:var(--f-mono);color:var(--ink-3);margin-right:6px}
+
+section.group{padding-block:44px 8px;border-bottom:1px solid var(--rule);scroll-margin-top:56px}
+.group-head{display:grid;grid-template-columns:minmax(0,1fr);gap:6px;margin-bottom:22px}
+h2{font-family:var(--f-display);font-weight:600;font-size:26px;margin:0;letter-spacing:-.005em}
+h2 .code{font-family:var(--f-mono);font-size:13px;color:var(--ink-3);font-weight:400;margin-right:10px;vertical-align:middle}
+.group-head p{margin:0;color:var(--ink-2);max-width:72ch}
+
+.grid{display:grid;gap:14px;grid-template-columns:repeat(auto-fill,minmax(min(100%,360px),1fr))}
+.grid.wide{grid-template-columns:repeat(auto-fill,minmax(min(100%,560px),1fr))}
+.comp{border:1px solid var(--rule);border-radius:6px;display:flex;flex-direction:column;min-width:0;background:#0e0f10}
+.stage{background:var(--s-0);border-bottom:1px solid var(--rule);padding:22px 18px;display:flex;flex-wrap:wrap;gap:12px;align-items:center;justify-content:center;min-height:150px;border-radius:6px 6px 0 0;overflow:hidden;position:relative}
+.stage.left{justify-content:flex-start;align-items:flex-start}
+.stage.terrain{background:
+  radial-gradient(circle at 30% 40%,#4b4a3c 0,transparent 45%),radial-gradient(circle at 75% 70%,#3a3e33 0,transparent 50%),
+  linear-gradient(135deg,#55513f,#3d3d33 60%,#2f332c)}
+.stage.thermal{background:radial-gradient(circle at 60% 50%,#9a9a9a 0,#5a5a5a 40%,#2b2b2b 100%)}
+.info{padding:14px 16px 16px;display:grid;gap:8px;min-width:0}
+.info h3{margin:0;font-size:15px;font-weight:600;display:flex;gap:8px;align-items:baseline;flex-wrap:wrap}
+.info h3 code{font-family:var(--f-mono);font-size:11px;color:var(--ink-3);font-weight:400}
+.info p{margin:0;color:var(--ink-2);font-size:13px}
+.anat{margin:0;padding:0;list-style:none;display:grid;gap:3px;font-size:12.5px;color:var(--ink-2)}
+.anat li{display:grid;grid-template-columns:auto minmax(0,1fr);gap:8px}
+.anat li::before{content:"—";color:var(--ink-3)}
+.src{font-family:var(--f-mono);font-size:11px;color:var(--ink-3);letter-spacing:.02em}
+.src a{color:var(--ink-2);text-decoration-color:var(--ink-3)}
+
+/* ===== Recreated Skydio primitives ===== */
+.sk{font-family:var(--f-ui);color:var(--t-1)}
+.mono{font-family:var(--f-mono)}
+.ic{width:16px;height:16px;flex:none;stroke:currentColor;fill:none;stroke-width:1.7;stroke-linecap:round;stroke-linejoin:round}
+.ic.fill{fill:currentColor;stroke:none}
+
+/* swatches */
+.swatches{display:grid;gap:8px;grid-template-columns:repeat(auto-fill,minmax(118px,1fr));width:100%}
+.sw{border:1px solid var(--s-line);border-radius:4px;overflow:hidden;background:var(--s-1)}
+.sw i{display:block;height:46px}
+.sw div{padding:6px 8px;font-size:11.5px;line-height:1.35}
+.sw div b{display:block;font-weight:600;color:var(--t-1)}
+.sw div span{font-family:var(--f-mono);color:var(--t-2);font-size:10.5px}
+
+.typescale{display:grid;gap:10px;width:100%}
+.typescale div{display:grid;grid-template-columns:96px minmax(0,1fr);gap:12px;align-items:baseline;border-bottom:1px solid var(--s-line);padding-bottom:8px}
+.typescale span{font-family:var(--f-mono);font-size:10.5px;color:var(--t-2)}
+
+/* shell */
+.navrail{width:250px;background:var(--s-0);border:1px solid var(--s-line);border-radius:4px;padding:10px 8px;display:grid;gap:2px;font-size:14px}
+.navrail .lbl{font-size:11px;color:var(--t-2);padding:10px 10px 4px}
+.navrail .it{display:flex;align-items:center;gap:12px;padding:8px 10px;border-radius:4px;color:var(--t-1)}
+.navrail .it.on{background:var(--s-3)}
+.navrail .it .live{margin-left:auto}
+.mini-rail{width:52px;background:var(--s-0);border:1px solid var(--s-line);border-radius:4px;padding:8px 0;display:grid;gap:6px;justify-items:center}
+.mini-rail .b{width:36px;height:36px;display:grid;place-items:center;border-radius:4px;position:relative;color:var(--t-1)}
+.mini-rail .b.on{background:var(--s-3)}
+.dot-badge{position:absolute;top:2px;right:2px;min-width:14px;height:14px;border-radius:7px;background:var(--red);font-size:9px;font-weight:700;display:grid;place-items:center;color:#fff}
+.topbar{width:100%;display:flex;align-items:center;gap:14px;background:var(--s-0);border:1px solid var(--s-line);border-radius:4px;padding:10px 14px;font-size:15px}
+.topbar .crumb{color:var(--t-2)}.topbar .crumb b{color:var(--t-1);font-weight:500}
+.topbar .clock{margin-left:auto;font-variant-numeric:tabular-nums}
+.topbar .clock small{color:var(--t-2);font-size:12px}
+.layout-toggle{display:flex;gap:6px}
+.layout-toggle i{width:26px;height:16px;border:1.5px solid var(--t-2);border-radius:2px;display:block;position:relative}
+.layout-toggle i.on{border-color:var(--blue);background:color-mix(in srgb,var(--blue) 35%,transparent)}
+.layout-toggle i::after{content:"";position:absolute;inset:0 33%;border-inline:1.5px solid currentColor;color:inherit}
+.layout-toggle i.on::after{color:var(--blue)}
+.layout-toggle i:not(.on)::after{color:var(--t-2)}
+.panel-head{width:100%;display:flex;align-items:center;justify-content:space-between;background:var(--s-1);padding:12px 14px;border-radius:4px;font-size:14px}
+
+/* inputs */
+.field{display:flex;align-items:center;gap:8px;background:var(--s-3);border:1px solid var(--s-4);border-radius:3px;padding:8px 12px;color:var(--t-2);font-size:14px;width:100%}
+.selects{display:flex;gap:8px;width:100%}
+.select{flex:1;display:flex;align-items:center;gap:8px;background:var(--s-3);border:1px solid var(--s-4);border-radius:3px;padding:8px 12px;font-size:14px;color:var(--t-1)}
+.select .k{font-weight:500}.select .v{color:var(--t-1)}.select svg{margin-left:auto}
+.seg{display:flex;background:var(--s-2);border-radius:4px;padding:3px;gap:3px;width:100%}
+.seg span{flex:1;text-align:center;padding:7px 8px;border-radius:3px;color:var(--t-2);font-size:14px}
+.seg span.on{background:var(--s-4);color:var(--t-1)}
+.seg.blue{padding:0;border-radius:2px;background:var(--s-2)}
+.seg.blue span{border-radius:0;color:var(--t-1)}
+.seg.blue span.on{background:var(--blue)}
+.toggle{width:52px;height:28px;border-radius:14px;background:var(--blue);position:relative;flex:none}
+.toggle::after{content:"";position:absolute;right:3px;top:3px;width:22px;height:22px;border-radius:50%;background:#fff}
+.toggle.off{background:var(--s-4)}.toggle.off::after{right:auto;left:3px}
+
+/* badges */
+.badge{font-size:12px;padding:3px 8px;border-radius:2px;line-height:1.3;white-space:nowrap;display:inline-block}
+.b-active{background:var(--green);color:#fff}
+.b-upcoming{border:1px solid var(--s-4);color:var(--t-1);background:var(--s-2)}
+.b-tfr{background:var(--red-deep);color:#fff;border:1px solid var(--red)}
+.b-flying{background:var(--blue-deep);color:#cfe0ff;border:1px solid #1d4fa8}
+.b-ready{background:var(--s-3);color:var(--t-2);border:1px solid var(--s-4)}
+.live{background:var(--red);color:#fff;font-size:10px;font-weight:700;padding:2px 5px;border-radius:2px;letter-spacing:.02em}
+.live.big{font-size:22px;padding:4px 14px}
+.chip-time{background:var(--s-3);color:var(--t-1);padding:3px 8px;border-radius:3px;font-size:13px;font-variant-numeric:tabular-nums}
+.chip-outline{border:1px solid var(--t-2);border-radius:3px;padding:2px 7px;font-size:13px}
+.initials{width:24px;height:24px;border-radius:50%;background:var(--s-4);display:grid;place-items:center;font-size:11px;font-weight:600}
+
+/* cards */
+.card{background:var(--s-2);border-radius:3px;width:100%;max-width:350px;font-size:13px;overflow:hidden}
+.card .h{display:flex;justify-content:space-between;align-items:center;padding:10px 10px 10px 12px;border-bottom:1px solid var(--s-line);font-weight:500}
+.card .b{padding:10px 12px;color:var(--t-1);line-height:1.4}
+.card .b small{display:block;color:var(--t-2);font-size:12px}
+.card .f{display:flex;align-items:center;gap:10px;padding:0 12px 12px;color:var(--t-1);font-size:12.5px}
+.card .f .cnt{display:flex;gap:4px;align-items:center}
+.card .f .r{margin-left:auto;display:flex;gap:14px}
+.attn{background:var(--s-2);border-left:3px solid var(--red);padding:12px 14px;width:100%;max-width:330px;display:grid;grid-template-columns:1fr auto;gap:2px 10px;font-size:12.5px}
+.attn b{font-size:14px;font-weight:600}
+.attn .a{display:flex;gap:6px;color:var(--t-2)}
+.attn small{color:var(--t-2)}
+.attn.dim{border-left-color:transparent;opacity:.55}
+.drone-row{display:grid;grid-template-columns:44px minmax(0,1fr) auto;gap:4px 10px;background:var(--s-1);border:1.5px solid var(--t-1);border-radius:4px;padding:10px 12px;width:100%;max-width:380px;align-items:center}
+.drone-row .thumb{grid-row:span 3;width:44px;height:44px;border-radius:4px;background:linear-gradient(145deg,#9aa0a6,#4a4e53);position:relative}
+.drone-row .thumb .live{position:absolute;top:-6px;left:-4px}
+.drone-row .nm{font-size:16px;font-weight:500}
+.drone-row .st{display:flex;gap:8px;align-items:center;font-size:13px}
+.drone-row .sub{color:var(--t-1);font-size:13px}
+.qa{display:flex;gap:6px;grid-column:2/4}
+.qa span{width:26px;height:24px;display:grid;place-items:center;background:var(--s-3);border-radius:3px}
+
+.sched{background:var(--s-3);border-radius:4px;display:grid;grid-template-columns:96px minmax(0,1fr);overflow:hidden;width:100%;max-width:420px}
+.sched.sel{outline:2px solid var(--blue)}
+.sched .map{background:#e9ebee;position:relative}
+.sched .map svg{position:absolute;inset:8px}
+.sched .t{padding:10px 12px;display:grid;gap:6px;font-size:13px;font-weight:600;text-transform:uppercase;letter-spacing:.01em}
+.sched .t div{display:flex;justify-content:space-between;align-items:center;font-weight:500}
+
+/* map */
+.mk{display:grid;justify-items:center;gap:4px}
+.mk .cap{font-size:11px;color:var(--t-2);font-family:var(--f-mono)}
+.drone-mk{width:34px;height:34px;border-radius:50%;background:var(--blue);border:2.5px solid #fff;display:grid;place-items:center;color:#fff;position:relative}
+.drone-mk.sel{background:var(--amber);color:#1a1300}
+.drone-lbl{font-size:11.5px;text-align:center;line-height:1.25;color:#fff;text-shadow:0 1px 2px #000}
+.drone-lbl span{background:rgba(0,0,0,.55);padding:0 3px;border-radius:2px}
+.wp{width:22px;height:22px;border-radius:50%;display:grid;place-items:center;font-size:11px;font-weight:600;border:2px solid #fff}
+.wp.done{background:var(--blue);color:#fff}.wp.next{background:#f4f4f4;color:#222;border-color:#444}
+.diamond{width:30px;height:30px;transform:rotate(45deg);display:grid;place-items:center;border:2px solid #fff;border-radius:3px}
+.diamond>*{transform:rotate(-45deg)}
+.d-red{background:var(--red);color:#fff}.d-purple{background:var(--purple);color:#fff}.d-yellow{background:var(--amber);color:#111;border-color:#111}
+.dock-mk{width:30px;height:30px;border-radius:50%;background:#111;border:2px solid #fff;display:grid;place-items:center;font-weight:700;font-size:13px;color:#fff;font-family:var(--f-display)}
+.tak{width:36px;height:36px;border:2px solid #000}
+.tak.hostile{background:var(--tak-hostile);transform:rotate(45deg) scale(.82)}
+.tak.friend{background:var(--tak-friend);width:44px;height:30px}
+.tak.neutral{background:var(--tak-neutral)}
+.tak.unknown{border:none;width:44px;height:44px;background:none}
+.maptools{display:grid;gap:4px;background:var(--s-1);padding:4px;border-radius:4px}
+.maptools span{width:34px;height:34px;display:grid;place-items:center;background:var(--s-2);border-radius:3px;font-size:12px;font-weight:600}
+.maptools span.on{background:var(--blue)}
+.mapsearch{display:flex;align-items:center;gap:10px;background:var(--s-1);border:1px solid var(--s-4);border-radius:3px;padding:9px 12px;color:var(--t-2);width:100%;max-width:300px}
+.cmdbar{display:flex;gap:6px;background:var(--s-1);padding:6px;border-radius:4px;align-items:center;flex-wrap:wrap}
+.cmdbar .l{padding:0 10px;font-size:13.5px}
+.btn{display:inline-flex;align-items:center;gap:8px;padding:8px 14px;border-radius:3px;font-size:14px;background:var(--s-3);border:1px solid var(--s-4);color:var(--t-1);white-space:nowrap}
+.btn.danger{background:var(--red);border-color:var(--red)}
+.btn.primary{background:var(--blue);border-color:var(--blue);justify-content:center}
+.btn.block{width:100%;justify-content:center}
+
+/* video tile */
+.tile{width:100%;border:1px solid var(--s-line);border-radius:4px;overflow:hidden;background:var(--s-1)}
+.tile.sel{border:2px solid var(--amber)}
+.tile .hd{display:flex;align-items:center;gap:12px;padding:8px 10px;font-size:13.5px;flex-wrap:wrap}
+.tile.sel .hd{background:var(--amber-deep)}
+.tile .hd .who{color:var(--t-2);display:flex;gap:6px;align-items:center}
+.tile .hd .tools{margin-left:auto;display:flex;gap:6px;align-items:center}
+.sig{display:flex;gap:8px;background:var(--s-3);padding:3px 8px;border-radius:3px;font-size:11px;font-weight:600}
+.iconbtn{width:28px;height:28px;display:grid;place-items:center;border-radius:3px;color:var(--t-1)}
+.iconbtn.red{background:var(--red)}
+.tile .vid{height:130px;background:linear-gradient(160deg,#565a5e,#2a2c2e 70%);position:relative}
+.reticle{position:absolute;width:64px;height:58px;left:50%;top:50%;transform:translate(-50%,-50%)}
+.reticle i{position:absolute;width:12px;height:12px;border:2.5px solid var(--reticle)}
+.reticle i:nth-child(1){top:0;left:0;border-right:0;border-bottom:0}
+.reticle i:nth-child(2){top:0;right:0;border-left:0;border-bottom:0}
+.reticle i:nth-child(3){bottom:0;left:0;border-right:0;border-top:0}
+.reticle i:nth-child(4){bottom:0;right:0;border-left:0;border-top:0}
+.reticle.static{position:relative;left:auto;top:auto;transform:none}
+.bbox{border:2px solid var(--amber);width:150px;height:84px;position:relative}
+.bbox .tag{position:absolute;right:8px;top:30px;font-size:15px;color:#fff;text-shadow:0 1px 3px #000;font-weight:500}
+.bbox .pin{position:absolute;left:58px;top:-10px}
+.hudbox{background:rgba(20,20,20,.85);border:1px solid var(--s-4);border-radius:3px;padding:6px 8px;display:grid;grid-template-columns:auto auto;gap:4px 14px;font-family:var(--f-mono);font-size:12px;line-height:1.1}
+.hudbox .v{font-weight:600}
+.hudbox .u{font-size:9.5px;color:var(--t-2);display:block;letter-spacing:.04em}
+.batt-bar{display:flex;gap:2px;margin-bottom:3px}.batt-bar i{height:4px;flex:1;background:var(--green)}.batt-bar i:first-child{background:var(--red)}.batt-bar i:last-child{background:#555}
+.wind-bar{height:4px;background:linear-gradient(90deg,#eee 30%,#555 30%);margin-bottom:3px}
+.ring{width:46px;height:46px;position:relative;display:grid;place-items:center;font-weight:600;font-size:15px;flex:none}
+.ring svg{position:absolute;inset:0;transform:rotate(-90deg)}
+.flightstrip{display:flex;flex-wrap:wrap;gap:6px 18px;align-items:center;background:rgba(18,18,18,.88);padding:10px 14px;border-radius:4px;font-size:13px}
+.flightstrip .cell{display:flex;align-items:center;gap:6px;white-space:nowrap}
+.flightstrip .k{font-size:9.5px;font-weight:700;color:var(--t-2);letter-spacing:.03em}
+.flightstrip .stack{display:grid;gap:2px}
+.sigtag{display:flex;align-items:center;gap:4px;font-weight:600;font-size:12px}
+.sigtag.boxed{background:var(--s-3);padding:1px 6px;border-radius:3px}
+.camstack{display:grid;gap:6px}
+.camstack .row{display:flex;background:var(--s-2);border:1px solid var(--s-4);border-radius:3px;overflow:hidden;font-family:var(--f-mono);font-size:12.5px;font-weight:600;letter-spacing:.04em}
+.camstack .row span{padding:8px 12px;display:flex;gap:8px;align-items:center}
+.camstack .row span+span{border-left:1px solid var(--s-4);padding:8px 6px}
+.camstack .ai{display:grid;grid-template-columns:repeat(2,26px);gap:6px 10px;padding:8px 10px}
+.camstack .ai i{width:26px;height:22px;display:grid;place-items:center;border-bottom:2px solid var(--green)}
+.recdot{width:9px;height:9px;border-radius:50%;background:#fff}
+
+/* controller */
+.ctl-rail{display:grid;gap:6px;background:#0b0b0b;padding:8px;border-radius:6px}
+.ctl-rail span{width:48px;height:42px;display:grid;place-items:center;background:var(--s-2);border-radius:4px;position:relative}
+.ctl-rail span.on{background:var(--blue)}
+.ctl-rail span.on::before{content:"";position:absolute;left:5px;top:9px;bottom:9px;width:3px;background:var(--reticle);border-radius:2px}
+.ctl-rail span.fly::after{content:"";position:absolute;right:3px;bottom:5px;border:4px solid transparent;border-left-color:#fff;border-right:0}
+.zoom{display:grid;gap:6px;background:#0b0b0b;padding:8px;border-radius:6px;justify-items:center}
+.zoom span{width:64px;height:48px;display:grid;place-items:center;font-size:17px;font-weight:500;border-radius:4px}
+.zoom span.on{background:var(--amber);color:#1a1300}
+.camtog{display:flex;border-radius:4px;overflow:hidden}
+.camtog span{width:40px;height:36px;display:grid;place-items:center;background:#3a3a3a;color:#999}
+.camtog span.on{background:#fff;color:#111}
+.recbtn{width:58px;height:58px;border-radius:50%;border:4px solid #5a1b1d;background:var(--red);box-shadow:0 0 0 2px var(--red)}
+.recbtn.stop{display:grid;place-items:center}
+.recbtn.stop::after{content:"";width:18px;height:18px;background:#fff;border-radius:3px}
+.flyout{background:var(--s-0);border-radius:4px;width:100%;max-width:330px;padding:14px 16px;display:grid;gap:12px;font-size:15px;position:relative}
+.flyout::before{content:"";position:absolute;left:-8px;top:60%;border:8px solid transparent;border-right-color:var(--s-0);border-left:0}
+.flyout .r{display:flex;justify-content:space-between;align-items:center}
+.flyout .ttl{font-size:17px;font-weight:600}
+.flyout .sel2{display:flex;align-items:center;gap:12px}
+.flyout .sel2 .select{background:var(--s-2)}
+.thermal-menu{display:grid;gap:6px;width:150px}
+.thermal-menu span{background:#3b3d40;border-radius:4px;padding:8px 10px;display:grid;gap:2px;font-size:13px;font-weight:600;color:#ececec}
+.readout{background:rgba(20,20,20,.9);border-radius:4px;padding:8px 12px;display:grid;gap:4px;font-size:14px;justify-items:center}
+.readout div{display:flex;gap:8px;align-items:center}
+.relief{display:flex;align-items:center;gap:14px;background:#0b0b0b;padding:10px 14px;border-radius:4px;width:100%;flex-wrap:wrap}
+.relief .th{width:72px;height:46px;background:linear-gradient(150deg,#9b8f6a,#5d6b55);border-radius:2px}
+.relief .nm{display:grid;font-size:15px}.relief .nm small{color:var(--t-2);font-size:12.5px}
+.relief .hand{margin-left:auto;display:flex;align-items:stretch;background:var(--s-2);border-radius:3px;overflow:hidden}
+.relief .hand i{background:var(--blue-deep);width:38px;display:grid;place-items:center;color:#9cc0ff;font-style:normal}
+.relief .hand span{padding:9px 14px;color:var(--t-2)}
+
+/* ISR command (TAK-styled) */
+.isr{font-family:var(--f-mono);text-transform:uppercase;letter-spacing:.08em}
+.isr-toast{background:rgba(40,36,30,.9);border:2px solid #8a8a8a;padding:10px 16px 10px 14px;display:flex;gap:12px;width:100%;max-width:360px}
+.isr-toast::before{content:"";width:4px;border-radius:2px;background:var(--amber);flex:none}
+.isr-toast div{display:grid;gap:4px;font-size:15px;color:#e4e4e4}
+.isr-toast.red::before{background:var(--red)}
+.mgrs{background:rgba(10,14,12,.85);border:1px solid #333;padding:8px 12px;color:#3df07a;font-family:var(--f-mono);font-size:15px;line-height:1.35;letter-spacing:.06em}
+.pip{background:#151515;border-radius:6px;padding:10px;width:240px;display:grid;gap:8px}
+.pip .r{display:flex;justify-content:space-between;align-items:center;font-size:17px;font-weight:600}
+.segbatt{display:flex;gap:2px;border:1px solid #666;padding:2px;border-radius:2px}
+.segbatt i{width:5px;height:12px;background:#28c840}.segbatt i:first-child{background:var(--amber)}
+.pip .v{height:100px;background:linear-gradient(150deg,#c9b48a,#8d8a6b);margin-inline:18px}
+
+/* alerts */
+.incident{background:var(--s-1);border:1px solid var(--s-line);border-radius:5px;width:100%;max-width:400px;overflow:hidden}
+.incident .top{display:flex;gap:12px;align-items:center;padding:14px 16px;border-bottom:1px solid var(--s-line);font-size:17px;font-weight:500}
+.incident .body{padding:12px 16px;display:grid;gap:10px}
+.incident .body>b{font-size:15px;font-weight:500}
+.sensor{display:grid;grid-template-columns:54px minmax(0,1fr) auto;background:var(--s-2);border:1px solid var(--s-line);border-radius:3px;overflow:hidden}
+.sensor .ico{background:var(--s-3);display:grid;place-items:center}
+.sensor .t{padding:9px 12px;display:grid;gap:2px;font-size:14px}
+.sensor .t small{color:var(--t-2);font-size:11.5px;letter-spacing:.04em}
+.sensor .chip-outline{align-self:start;margin:8px 8px 0 0}
+.incident .more{display:grid;place-items:center;padding:6px;border-top:1px solid var(--s-line);color:var(--t-2)}
+.launch{background:var(--s-1);border:1px solid var(--s-line);border-radius:5px;width:100%;max-width:320px;padding:16px;display:grid;justify-items:center;gap:8px}
+.launch .render{width:150px;height:60px;position:relative}
+.launch .nm{font-size:17px;font-weight:600}
+.launch .ok{color:var(--green);display:flex;gap:6px;align-items:center;font-size:13px}
+.kv{background:var(--s-1);border:1px solid var(--s-line);border-radius:5px;width:100%;max-width:400px;font-size:13.5px;overflow:hidden}
+.kv .hd{display:flex;justify-content:space-between;padding:14px 16px;font-weight:600;text-transform:uppercase;letter-spacing:.01em;font-size:14px;line-height:1.3;border-bottom:1px solid var(--s-line)}
+.kv .rs{display:flex;justify-content:space-between;align-items:center;padding:10px 16px;border-bottom:1px solid var(--s-line);font-weight:600;gap:10px}
+.kv .rs .select{flex:none;font-weight:400}
+.kv dl{margin:0;padding:10px 16px;display:grid;grid-template-columns:auto minmax(0,1fr);gap:8px 12px}
+.kv dt{color:var(--t-1)}.kv dd{margin:0;text-align:right;color:var(--t-2);font-variant-numeric:tabular-nums;display:flex;justify-content:flex-end;gap:6px;align-items:center}
+.kv .ft{padding:0 16px 14px}
+.share{background:var(--s-1);border:1px solid var(--s-line);border-radius:5px;padding:14px;width:100%;max-width:300px;display:grid;gap:10px;font-size:13px}
+.share .qr{width:84px;height:84px;background:
+  conic-gradient(from 90deg at 30% 30%,#fff 25%,#000 0 50%,#fff 0 75%,#000 0) 0 0/14px 14px;border:6px solid #fff;justify-self:center}
+.toast2{display:flex;gap:10px;align-items:center;background:rgba(15,15,15,.92);border:1px solid var(--s-4);border-radius:4px;padding:10px 12px;font-size:13px}
+.attach{display:grid;gap:6px;background:rgba(20,20,20,.9);padding:8px;border-radius:4px;font-size:12px;color:var(--t-2);justify-items:center}
+.attach span{width:34px;height:34px;display:grid;place-items:center;background:var(--s-3);border-radius:3px;color:var(--t-1)}
+.attach span.on{outline:1.5px solid var(--t-1)}
+.tip{background:#000;color:#fff;font-size:12px;padding:5px 8px;border-radius:3px}
+.det-chip{border:2px solid var(--reticle);padding:24px 30px;position:relative;color:#fff;font-size:11px}
+.det-chip.animal{border-color:var(--amber)}
+.det-chip b{position:absolute;top:-2px;left:-2px;background:var(--reticle);color:#062;font-size:10px;padding:1px 5px;font-family:var(--f-mono)}
+.det-chip.animal b{background:var(--amber);color:#2a1d00}
+
+/* screens strip */
+.screens{display:grid;gap:12px;grid-template-columns:repeat(auto-fill,minmax(min(100%,270px),1fr));margin-top:4px}
+.screens figure{margin:0;border:1px solid var(--rule);border-radius:6px;overflow:hidden;background:#0e0f10}
+.screens img{display:block;width:100%;aspect-ratio:16/10;object-fit:cover;object-position:top left;max-width:100%}
+.screens figcaption{padding:8px 10px;font-size:12px;color:var(--ink-2);display:grid;gap:2px}
+.screens figcaption b{color:var(--ink);font-weight:500}
+.screens figcaption span{font-family:var(--f-mono);font-size:10.5px;color:var(--ink-3)}
+
+.notes{display:grid;gap:14px;grid-template-columns:repeat(auto-fill,minmax(min(100%,340px),1fr))}
+.note{border-top:2px solid var(--ink-3);padding-top:10px;display:grid;gap:6px;min-width:0}
+.note h3{margin:0;font-size:15px;font-weight:600}
+.note p{margin:0;color:var(--ink-2);font-size:13.5px}
+.disclaimer{margin-top:36px;color:var(--ink-3);font-size:12px;max-width:80ch}
+
+/* principles */
+.prin{display:grid;gap:0;border-top:1px solid var(--rule)}
+.pr{display:grid;grid-template-columns:64px minmax(0,1.1fr) minmax(0,1.3fr);gap:18px;padding:18px 0;border-bottom:1px solid var(--rule)}
+.pr .id{font-family:var(--f-mono);font-size:12px;color:var(--ink-3);padding-top:3px}
+.pr h3{margin:0 0 6px;font-family:var(--f-display);font-size:18px;font-weight:600;text-wrap:balance}
+.pr .why{margin:0;color:var(--ink-2);font-size:13.5px}
+.pr .ev{margin-top:8px;font-family:var(--f-mono);font-size:11px;color:var(--ink-3)}
+.rules{display:grid;gap:6px;margin:0;padding:0;list-style:none;font-size:13px}
+.rules li{display:grid;grid-template-columns:60px minmax(0,1fr);gap:10px;align-items:baseline}
+.rules .k{font-family:var(--f-mono);font-size:10.5px;font-weight:600;letter-spacing:.06em;padding:2px 0;text-align:center;border-radius:2px}
+.k.must{background:#11305f;color:#bcd4ff}.k.never{background:#4a1416;color:#ffc2c4}.k.check{background:#24272b;color:var(--ink-2)}
+@media (max-width:760px){.pr{grid-template-columns:minmax(0,1fr);gap:8px}}
+
+/* ontology */
+.lanes{overflow-x:auto;border:1px solid var(--rule);border-radius:6px;background:#0e0f10}
+.lanes svg{display:block;min-width:900px;width:100%;height:auto}
+.lanes text{font-family:var(--f-ui)}
+.olegend{display:flex;flex-wrap:wrap;gap:8px 18px;font-size:12px;color:var(--ink-2);margin-top:10px}
+.olegend i{display:inline-block;width:18px;height:0;border-top:2px solid;vertical-align:middle;margin-right:6px}
+.tbl-wrap{overflow-x:auto;border:1px solid var(--rule);border-radius:6px;margin-top:22px}
+table.onto{border-collapse:collapse;width:100%;min-width:980px;font-size:13px}
+.onto th{text-align:left;font-family:var(--f-mono);font-size:10.5px;letter-spacing:.08em;text-transform:uppercase;color:var(--ink-3);font-weight:500;padding:10px 12px;border-bottom:1px solid var(--rule);background:#0e0f10;position:sticky;top:0}
+.onto td{padding:11px 12px;border-bottom:1px solid var(--rule);vertical-align:top;color:var(--ink-2)}
+.onto td:first-child{color:var(--ink);font-weight:600;white-space:nowrap}
+.onto td:first-child small{display:block;font-weight:400;font-family:var(--f-mono);font-size:10.5px;color:var(--ink-3);margin-top:2px}
+.onto tr.lane td{background:#121416;color:var(--ink);font-family:var(--f-mono);font-size:11px;letter-spacing:.1em;text-transform:uppercase;padding:7px 12px}
+.onto code{font-family:var(--f-mono);font-size:11.5px;color:var(--ink);background:#1a1c1f;padding:1px 5px;border-radius:3px;white-space:nowrap}
+.onto .st{display:flex;flex-wrap:wrap;gap:4px}
+.onto .st span{font-size:11px;border:1px solid #33373b;border-radius:2px;padding:0 5px;white-space:nowrap}
+h3.sub{font-family:var(--f-display);font-size:19px;font-weight:600;margin:34px 0 12px}
+.machines{display:grid;gap:14px;grid-template-columns:repeat(auto-fill,minmax(min(100%,380px),1fr))}
+.machine{border:1px solid var(--rule);border-radius:6px;padding:14px 16px;display:grid;gap:10px;min-width:0}
+.machine b{font-size:14px}
+.flow{display:flex;flex-wrap:wrap;gap:6px;align-items:center;font-size:12.5px}
+.flow span{padding:3px 8px;border-radius:2px;background:var(--s-3);white-space:nowrap}
+.flow em{font-style:normal;color:var(--ink-3)}
+.flow span.g{background:var(--green-deep);color:#bfe8c9}.flow span.b{background:var(--blue-deep);color:#cfe0ff}.flow span.r{background:var(--red-deep);color:#ffc9cb}.flow span.a{background:var(--amber-deep);color:#ffe39a}
+.machine p{margin:0;color:var(--ink-2);font-size:13px}
+.rels{display:grid;gap:0;grid-template-columns:repeat(auto-fill,minmax(min(100%,370px),1fr));border-top:1px solid var(--rule)}
+.rel{display:grid;grid-template-columns:minmax(0,1fr);gap:3px;padding:10px 4px;border-bottom:1px solid var(--rule)}
+.rel .t{font-size:13.5px}.rel .t b{font-weight:600}.rel .t i{font-style:normal;font-family:var(--f-mono);font-size:12px;color:var(--blue);padding-inline:4px}
+.rel .m{font-size:12.5px;color:var(--ink-3)}
+
+/* generation */
+pre.code{margin:0;background:#0e0f10;border:1px solid var(--rule);border-radius:6px;padding:16px;overflow-x:auto;font-family:var(--f-mono);font-size:12.5px;line-height:1.55;color:var(--ink-2)}
+pre.code b{color:var(--ink);font-weight:500}
+.gen-grid{display:grid;gap:16px;grid-template-columns:repeat(auto-fill,minmax(min(100%,520px),1fr))}
+.gen-grid>div{min-width:0;display:grid;gap:8px;align-content:start}
+.gen-grid h3{margin:0;font-size:15px;font-weight:600}
+.gen-grid p{margin:0;color:var(--ink-2);font-size:13.5px}
+@media (max-width:520px){.navrail{width:100%}.typescale div{grid-template-columns:1fr}}
+@media (prefers-reduced-motion:reduce){*{scroll-behavior:auto!important}}
+html{scroll-behavior:smooth}
+</style>
+
+<!-- shared icon sprites -->
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <symbol id="i-search" viewBox="0 0 24 24"><circle cx="11" cy="11" r="6.5"/><path d="m16 16 4 4"/></symbol>
+  <symbol id="i-chev" viewBox="0 0 24 24"><path d="m6 9 6 6 6-6"/></symbol>
+  <symbol id="i-up" viewBox="0 0 24 24"><path d="m6 15 6-6 6 6"/></symbol>
+  <symbol id="i-home" viewBox="0 0 24 24"><path d="M4 11 12 4l8 7v9h-5v-6H9v6H4z"/></symbol>
+  <symbol id="i-send" viewBox="0 0 24 24"><path d="M20 4 4 11l7 2 2 7z"/></symbol>
+  <symbol id="i-drone" viewBox="0 0 24 24"><circle cx="6" cy="6" r="2.5"/><circle cx="18" cy="6" r="2.5"/><circle cx="6" cy="18" r="2.5"/><circle cx="18" cy="18" r="2.5"/><path d="m8 8 3 3m5-3-3 3m-5 5 3-3m5 3-3-3"/></symbol>
+  <symbol id="i-users" viewBox="0 0 24 24"><circle cx="9" cy="8" r="3.2"/><path d="M3 19c.8-3.5 3-5 6-5s5.2 1.5 6 5"/><circle cx="17" cy="9" r="2.4"/><path d="M16 14c2.5 0 4.2 1.4 5 4"/></symbol>
+  <symbol id="i-route" viewBox="0 0 24 24"><circle cx="6" cy="18" r="2"/><circle cx="18" cy="6" r="2"/><path d="M8 18h7a3 3 0 0 0 0-6H9a3 3 0 0 1 0-6h7"/></symbol>
+  <symbol id="i-media" viewBox="0 0 24 24"><rect x="3" y="6" width="14" height="12" rx="1"/><path d="M7 3h14v12"/></symbol>
+  <symbol id="i-doc" viewBox="0 0 24 24"><path d="M6 3h8l4 4v14H6z"/><path d="M9 13h6M9 17h6"/></symbol>
+  <symbol id="i-cast" viewBox="0 0 24 24"><path d="M3 8V6h18v12h-6"/><path d="M3 12a6 6 0 0 1 6 6M3 16a2 2 0 0 1 2 2"/></symbol>
+  <symbol id="i-layers" viewBox="0 0 24 24"><path d="m12 4 9 5-9 5-9-5z"/><path d="m3 14 9 5 9-5"/></symbol>
+  <symbol id="i-target" viewBox="0 0 24 24"><circle cx="12" cy="12" r="5"/><path d="M12 3v4m0 10v4M3 12h4m10 0h4"/></symbol>
+  <symbol id="i-eye" viewBox="0 0 24 24"><path d="M2 12s4-6 10-6 10 6 10 6-4 6-10 6S2 12 2 12z"/><circle cx="12" cy="12" r="2.5"/></symbol>
+  <symbol id="i-pause" viewBox="0 0 24 24"><path d="M9 6v12M15 6v12"/></symbol>
+  <symbol id="i-descend" viewBox="0 0 24 24"><path d="M12 5v11m-4-4 4 4 4-4M6 20h12"/></symbol>
+  <symbol id="i-return" viewBox="0 0 24 24"><path d="M4 11 12 4l8 7"/><path d="M6 10v9h12v-9"/><path d="M12 17v-6m-2.5 2.5L12 11l2.5 2.5"/></symbol>
+  <symbol id="i-share" viewBox="0 0 24 24"><path d="M12 3v12m-4-8 4-4 4 4M5 13v7h14v-7"/></symbol>
+  <symbol id="i-gear" viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M12 2v3m0 14v3M2 12h3m14 0h3M5 5l2 2m10 10 2 2M5 19l2-2m10-10 2-2"/></symbol>
+  <symbol id="i-expand" viewBox="0 0 24 24"><path d="M14 4h6v6M10 20H4v-6M20 4l-7 7M4 20l7-7"/></symbol>
+  <symbol id="i-person" viewBox="0 0 24 24"><circle cx="12" cy="5" r="2"/><path d="m9 21 2-6-2-3 1-4h4l2 4M12 15l3 6"/></symbol>
+  <symbol id="i-car" viewBox="0 0 24 24"><path d="M4 16v-4l2-5h12l2 5v4zM4 16v3m16-3v3"/><circle cx="8" cy="13" r=".8"/><circle cx="16" cy="13" r=".8"/></symbol>
+  <symbol id="i-pin" viewBox="0 0 24 24"><path d="M12 21s-6-6-6-11a6 6 0 0 1 12 0c0 5-6 11-6 11z"/><circle cx="12" cy="10" r="2"/></symbol>
+  <symbol id="i-batt" viewBox="0 0 24 24"><rect x="3" y="7" width="16" height="10" rx="1.5"/><path d="M21 10v4"/><path d="M6 10h10v4H6z" fill="currentColor"/></symbol>
+  <symbol id="i-moon" viewBox="0 0 24 24"><path d="M20 14A8 8 0 1 1 10 4a6 6 0 0 0 10 10z"/></symbol>
+  <symbol id="i-scan" viewBox="0 0 24 24"><path d="M4 8V4h4M16 4h4v4M20 16v4h-4M8 20H4v-4"/><circle cx="12" cy="10" r="2"/><path d="M8 16c1-2 2.4-3 4-3s3 1 4 3"/></symbol>
+  <symbol id="i-bell" viewBox="0 0 24 24"><path d="M6 16V11a6 6 0 0 1 12 0v5l2 2H4z"/><path d="M10 20a2 2 0 0 0 4 0"/></symbol>
+  <symbol id="i-plus" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></symbol>
+  <symbol id="i-panels" viewBox="0 0 24 24"><rect x="4" y="4" width="7" height="16" rx="1"/><rect x="13" y="4" width="7" height="7" rx="1"/><rect x="13" y="13" width="7" height="7" rx="1"/></symbol>
+  <symbol id="i-chat" viewBox="0 0 24 24"><path d="M4 5h16v11H9l-5 4z"/><path d="M8 9h8M8 12h5"/></symbol>
+  <symbol id="i-hex" viewBox="0 0 24 24"><path d="m12 3 8 4.5v9L12 21l-8-4.5v-9z"/></symbol>
+  <symbol id="i-cam" viewBox="0 0 24 24"><path d="M4 8h4l2-2h4l2 2h4v11H4z"/><circle cx="12" cy="13" r="3"/></symbol>
+  <symbol id="i-video" viewBox="0 0 24 24"><rect x="3" y="7" width="13" height="10" rx="1"/><path d="m16 11 5-3v8l-5-3"/></symbol>
+  <symbol id="i-x" viewBox="0 0 24 24"><path d="m6 6 12 12M18 6 6 18"/></symbol>
+  <symbol id="i-copy" viewBox="0 0 24 24"><rect x="8" y="8" width="12" height="12" rx="1.5"/><path d="M4 16V4h12"/></symbol>
+  <symbol id="i-check" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="m8 12 3 3 5-6"/></symbol>
+  <symbol id="i-back" viewBox="0 0 24 24"><path d="M20 12H5m6-6-6 6 6 6"/></symbol>
+  <symbol id="i-bino" viewBox="0 0 24 24"><circle cx="7" cy="15" r="3.5"/><circle cx="17" cy="15" r="3.5"/><path d="M7 11.5 9 5h2v6m2 0V5h2l2 6.5"/></symbol>
+  <symbol id="i-dl" viewBox="0 0 24 24"><path d="M12 4v11m-4-4 4 4 4-4M5 20h14"/></symbol>
+  <symbol id="i-filter" viewBox="0 0 24 24"><path d="M4 5h16l-6 8v6l-4-2v-4z"/></symbol>
+  <symbol id="i-speaker" viewBox="0 0 24 24"><path d="M4 10h4l5-4v12l-5-4H4z"/><path d="M16 9a4 4 0 0 1 0 6m2-9a8 8 0 0 1 0 12"/></symbol>
+  <symbol id="i-pen" viewBox="0 0 24 24"><path d="M4 20 5 15 15 5l4 4L9 19z"/></symbol>
+  <symbol id="i-play" viewBox="0 0 24 24"><path d="M7 5v14l11-7z"/></symbol>
+</svg>
+
+<div class="wrap">
+<header class="mast">
+  <div class="eyebrow">Reverse-engineered component inventory · Defense &amp; security surfaces</div>
+  <h1>Skydio Defense UI Inventory</h1>
+  <p class="lede">A component library broken out of Skydio's public product screenshots for ISR Command, Security Command / Flight Deck, Base Security, Border Security, and the X10D controller. Each component is rebuilt in HTML/CSS so the anatomy is inspectable, with the screen it came from listed underneath.</p>
+  <div class="meta"><span><b>2</b> surfaces: desktop command web app, handheld controller</span><span><b>9</b> source screens</span><span><b>40+</b> components</span><span><b>12</b> principles</span><span><b>19</b> ontology entities</span><span>Colors sampled by eye</span></div>
+</header>
+
+<nav class="toc" aria-label="Sections"><ul>
+  <li><a href="#screens"><span>00</span>Source screens</a></li>
+  <li><a href="#foundations"><span>01</span>Foundations</a></li>
+  <li><a href="#shell"><span>02</span>Shell &amp; navigation</a></li>
+  <li><a href="#inputs"><span>03</span>Inputs &amp; status</a></li>
+  <li><a href="#lists"><span>04</span>Lists &amp; cards</a></li>
+  <li><a href="#map"><span>05</span>Map layer</a></li>
+  <li><a href="#video"><span>06</span>Video &amp; HUD</a></li>
+  <li><a href="#controller"><span>07</span>Controller</a></li>
+  <li><a href="#isr"><span>08</span>ISR / TAK</a></li>
+  <li><a href="#alerts"><span>09</span>Alerts &amp; incidents</a></li>
+  <li><a href="#principles"><span>10</span>Design principles</a></li>
+  <li><a href="#ontology"><span>11</span>Product ontology</a></li>
+  <li><a href="#generation"><span>12</span>Generation contract</a></li>
+</ul></nav>
+
+<!-- 00 SCREENS -->
+<section class="group" id="screens">
+  <div class="group-head"><h2><span class="code">00</span>Source screens</h2>
+  <p>Marketing renders from skydio.com, pulled 9 Nov 2026. Full-resolution copies of all 23 screens are in <code>interview-prep/skydio-defense-screens/</code>.</p></div>
+  <div class="screens">
+    <figure><img src="screens/natsec_security-command-multi-drone.jpg" alt="Security Command Flight Deck with patrol list, map and two drone feeds"><figcaption><b>Security Command · Flight Deck</b><span>/solutions/national-security</span></figcaption></figure>
+    <figure><img src="screens/border_corridor-map-multi-feed.jpg" alt="Border corridor operations list, map with restricted zone, two feeds"><figcaption><b>Flight Deck · Border corridor</b><span>/solutions/national-security/border-security</span></figcaption></figure>
+    <figure><img src="screens/base-security_multi-drone-map-grid.jpg" alt="Activity panel with drones, map, three-feed grid"><figcaption><b>Multi-dock grid view</b><span>/solutions/national-security/base-security</span></figcaption></figure>
+    <figure><img src="screens/isr-command_controller-subject-tracking-tak-marker.jpg" alt="Controller UI with Shadow subject tracking flyout"><figcaption><b>Controller · Shadow tracking</b><span>/software/isr-command</span></figcaption></figure>
+    <figure><img src="screens/atak-blog_flight-deck-thermal-tak-overlay.jpg" alt="Controller thermal view with palette menu and minimap"><figcaption><b>Controller · Thermal + minimap</b><span>/blog/…atak-for-tactical-isr</span></figcaption></figure>
+    <figure><img src="screens/isr-command_tak-map-drone-enroute.jpg" alt="ISR Command TAK map with drone relief en route"><figcaption><b>ISR Command · TAK map</b><span>/software/isr-command</span></figcaption></figure>
+    <figure><img src="screens/base-security_suspicious-activity-launch.jpg" alt="Incident card and dock launch card over thermal video"><figcaption><b>Sensor alert → launch</b><span>/solutions/national-security/base-security</span></figcaption></figure>
+    <figure><img src="screens/base-security_motion-alert-response-card.jpg" alt="Motion detected incident detail over thermal video"><figcaption><b>Incident detail</b><span>/solutions/national-security/base-security</span></figcaption></figure>
+    <figure><img src="screens/base-security_mission-schedule.jpg" alt="Mission schedule list with map thumbnails"><figcaption><b>Mission schedule</b><span>/solutions/national-security/base-security</span></figcaption></figure>
+  </div>
+</section>
+
+<!-- 01 FOUNDATIONS -->
+<section class="group" id="foundations">
+  <div class="group-head"><h2><span class="code">01</span>Foundations</h2>
+  <p>Near-black, low-chroma surfaces stepped by lightness, with color held back for meaning: blue for "ours / selected / go", red for "stop / hostile / live", green for "healthy / tracked". Amber marks whatever the operator is focused on right now.</p></div>
+  <div class="grid wide">
+    <div class="comp"><div class="stage left">
+      <div class="swatches sk">
+        <div class="sw"><i style="background:var(--s-0)"></i><div><b>surface-0</b><span>#0F0F10 app ground</span></div></div>
+        <div class="sw"><i style="background:var(--s-1)"></i><div><b>surface-1</b><span>#171718 panel</span></div></div>
+        <div class="sw"><i style="background:var(--s-2)"></i><div><b>surface-2</b><span>#1F2021 card</span></div></div>
+        <div class="sw"><i style="background:var(--s-3)"></i><div><b>surface-3</b><span>#2A2B2D control</span></div></div>
+        <div class="sw"><i style="background:var(--s-4)"></i><div><b>surface-4</b><span>#36383A stroke/selected</span></div></div>
+        <div class="sw"><i style="background:var(--t-2)"></i><div><b>text-2</b><span>#A3A3A3 secondary</span></div></div>
+      </div></div>
+      <div class="info"><h3>Surface ramp <code>neutral</code></h3><p>Five steps, each roughly +4–6% lightness. Panels separate by fill, rarely by border, which keeps a four-pane screen from looking caged.</p></div></div>
+    <div class="comp"><div class="stage left">
+      <div class="swatches sk">
+        <div class="sw"><i style="background:var(--blue)"></i><div><b>action-blue</b><span>drone, primary, on</span></div></div>
+        <div class="sw"><i style="background:var(--red)"></i><div><b>alert-red</b><span>stop, LIVE, hostile</span></div></div>
+        <div class="sw"><i style="background:var(--green)"></i><div><b>ok-green</b><span>Active, ready</span></div></div>
+        <div class="sw"><i style="background:var(--reticle)"></i><div><b>reticle</b><span>#1FE3A2 AI lock</span></div></div>
+        <div class="sw"><i style="background:var(--amber)"></i><div><b>focus-amber</b><span>selected feed, zoom</span></div></div>
+        <div class="sw"><i style="background:var(--purple)"></i><div><b>poi-purple</b><span>point of interest</span></div></div>
+      </div></div>
+      <div class="info"><h3>Semantic color <code>signal</code></h3><p>No brand accent shows up inside the product. Every saturated color carries operational meaning, and red is reserved for things that interrupt the operator.</p></div></div>
+    <div class="comp"><div class="stage left">
+      <div class="swatches sk">
+        <div class="sw"><i style="background:var(--tak-hostile)"></i><div><b>Hostile</b><span>diamond</span></div></div>
+        <div class="sw"><i style="background:var(--tak-friend)"></i><div><b>Friend</b><span>rectangle</span></div></div>
+        <div class="sw"><i style="background:var(--tak-unknown)"></i><div><b>Unknown</b><span>quatrefoil</span></div></div>
+        <div class="sw"><i style="background:var(--tak-neutral)"></i><div><b>Neutral</b><span>square</span></div></div>
+      </div></div>
+      <div class="info"><h3>Affiliation palette <code>MIL-STD-2525</code></h3><p>Imported from the TAK ecosystem as-is, not restyled. That keeps a Skydio marker readable to anyone on the same TAK server.</p></div></div>
+    <div class="comp"><div class="stage left">
+      <div class="typescale sk">
+        <div><span>UI · Inter-like 16/500</span><div style="font-size:16px;font-weight:500">HAW-Alpha-Dock</div></div>
+        <div><span>UI · 13/400 muted</span><div style="font-size:13px;color:var(--t-2)">Outer Perimeter · Next: Inner Perimeter</div></div>
+        <div><span>Caps label 14/600</span><div style="font-size:14px;font-weight:600;text-transform:uppercase">Motion detected on perimeter road</div></div>
+        <div><span>HUD mono 12/600</span><div class="mono" style="font-size:12px;font-weight:600;letter-spacing:.05em">REC · THERMAL · 210 FT · MAX 400</div></div>
+        <div><span>TAK mono 16 tracked</span><div class="isr" style="font-size:16px">X10-Bravo is en route</div></div>
+      </div></div>
+      <div class="info"><h3>Type roles <code>3 voices</code></h3><p>A neutral grotesk for the app, a monospace for machine-generated numbers on video, and a wide-tracked mono for TAK messages. Uppercase marks system-authored text such as alert titles and work-order names.</p></div></div>
+  </div>
+</section>
+
+<!-- 02 SHELL -->
+<section class="group" id="shell">
+  <div class="group-head"><h2><span class="code">02</span>Shell &amp; navigation</h2>
+  <p>The desktop app is a fixed four-column frame: nav, list, map, video. Everything below lives inside one of those columns.</p></div>
+  <div class="grid">
+    <div class="comp"><div class="stage">
+      <div class="navrail sk">
+        <div class="lbl">Live Operations</div>
+        <div class="it on"><svg class="ic"><use href="#i-send"/></svg>Flight Deck<span class="live">LIVE</span></div>
+        <div class="it"><svg class="ic"><use href="#i-cast"/></svg>Flight Cast</div>
+        <div class="lbl">Program Management</div>
+        <div class="it"><svg class="ic"><use href="#i-drone"/></svg>Fleet</div>
+        <div class="it"><svg class="ic"><use href="#i-route"/></svg>Patrol Planning</div>
+        <div class="lbl">Data Review</div>
+        <div class="it"><svg class="ic"><use href="#i-media"/></svg>Patrol History &amp; Media</div>
+      </div></div>
+      <div class="info"><h3>Side nav, expanded <code>NavRail</code></h3>
+      <ul class="anat"><li>Grouped by job: Live Operations / Program Management / Data Review</li><li>Active row gets a surface-3 fill; a LIVE tag rides on the item while a flight is up</li><li>Footer holds user + org switcher (tenant name and logo)</li></ul>
+      <div class="src">Seen in Security Command · Flight Deck</div></div></div>
+    <div class="comp"><div class="stage">
+      <div class="mini-rail sk">
+        <span class="b on"><svg class="ic"><use href="#i-target"/></svg><span class="dot-badge">1</span></span>
+        <span class="b"><svg class="ic"><use href="#i-drone"/></svg></span>
+        <span class="b"><svg class="ic fill" viewBox="0 0 24 24"><path d="m12 3 9 9-9 9-9-9z"/></svg></span>
+        <span class="b"><svg class="ic"><use href="#i-route"/></svg></span>
+        <span class="b" style="margin-top:22px"><svg class="ic"><use href="#i-chat"/></svg></span>
+      </div></div>
+      <div class="info"><h3>Side nav, collapsed <code>NavRail.compact</code></h3>
+      <ul class="anat"><li>Icon-only, 36px targets; count badge for unread operations</li><li>Used when the map and feeds need the width (border corridor view)</li></ul>
+      <div class="src">Seen in Flight Deck · Border corridor</div></div></div>
+    <div class="comp"><div class="stage" style="display:grid;gap:10px;justify-items:stretch">
+      <div class="topbar sk"><svg class="ic"><use href="#i-home"/></svg><span class="crumb">Security Command / <b>Flight Deck</b></span><span class="clock">11:38:15 <small>AM</small></span></div>
+      <div class="topbar sk"><svg class="ic"><use href="#i-home"/></svg><svg class="ic"><use href="#i-gear"/></svg><span style="margin-inline:auto;font-weight:600">Skydio</span><span class="layout-toggle"><i class="on"></i><i></i><i></i></span><span class="clock" style="margin-left:10px">09:29:15 <small>AM</small></span></div>
+    </div>
+      <div class="info"><h3>Top bar <code>AppHeader</code></h3>
+      <ul class="anat"><li>Breadcrumb product / module, live clock with seconds at the right edge</li><li>Variant carries a video-layout switcher (1-up, 2-up, grid)</li></ul>
+      <div class="src">Seen in Border corridor, Multi-dock grid</div></div></div>
+    <div class="comp"><div class="stage" style="display:grid;gap:10px;justify-items:stretch">
+      <div class="panel-head sk"><span>Patrols</span><svg class="ic"><use href="#i-panels"/></svg></div>
+      <div class="panel-head sk"><span>Operations</span><svg class="ic"><use href="#i-filter"/></svg></div>
+      <div class="panel-head sk" style="background:transparent;padding-inline:0"><span style="font-weight:600;font-size:15px">Currently Piloting <span style="color:var(--t-2)">ⓘ</span></span><svg class="ic"><use href="#i-up"/></svg></div>
+    </div>
+      <div class="info"><h3>Panel &amp; section headers <code>PanelHeader / Collapsible</code></h3>
+      <ul class="anat"><li>Pane title + one utility action (collapse pane, filter)</li><li>Collapsible group header groups by site or by state: Requires Attention, Active, Scheduled</li></ul>
+      <div class="src">Seen in Flight Deck, Border corridor, Multi-dock grid</div></div></div>
+  </div>
+</section>
+
+<!-- 03 INPUTS -->
+<section class="group" id="inputs">
+  <div class="group-head"><h2><span class="code">03</span>Inputs &amp; status</h2>
+  <p>Square-ish controls (2–4px radius) on surface-3. Status lives in small rectangular badges, never pills.</p></div>
+  <div class="grid">
+    <div class="comp"><div class="stage" style="display:grid;gap:8px;justify-items:stretch">
+      <div class="field sk"><svg class="ic"><use href="#i-search"/></svg>Search Patrols</div>
+      <div class="selects sk"><div class="select"><span class="k">Group By</span><span class="v">Site</span><svg class="ic"><use href="#i-chev"/></svg></div><div class="select"><span class="k">Sort</span><span class="v">Start Time</span><svg class="ic"><use href="#i-chev"/></svg></div></div>
+    </div>
+      <div class="info"><h3>Search + query selects <code>ListControls</code></h3><ul class="anat"><li>Label-in-field select ("Group By · Site") saves a row of vertical space</li></ul><div class="src">Seen in Flight Deck patrol list</div></div></div>
+    <div class="comp"><div class="stage" style="display:grid;gap:12px;justify-items:stretch">
+      <div class="seg sk"><span>Incidents</span><span class="on">Drones</span><span>Missions</span></div>
+      <div class="seg blue sk"><span class="on">Track</span><span>Follow</span></div>
+    </div>
+      <div class="info"><h3>Segmented control <code>Segmented</code></h3><ul class="anat"><li>Neutral variant switches list content</li><li>Blue variant switches a flight behavior: a mode change the aircraft will act on</li></ul><div class="src">Seen in Multi-dock grid, Controller · Shadow</div></div></div>
+    <div class="comp"><div class="stage" style="gap:16px">
+      <div class="toggle"></div><div class="toggle off"></div>
+      <div class="select sk" style="flex:none;background:var(--s-2)"><span>🚨 Responding</span><svg class="ic"><use href="#i-chev"/></svg></div>
+    </div>
+      <div class="info"><h3>Toggle &amp; status select <code>Switch / StatusSelect</code></h3><ul class="anat"><li>Toggles are large (52×28) for gloved touch on the controller</li><li>Response status is a select, so ownership changes are one tap</li></ul><div class="src">Seen in Controller · Shadow, Incident detail</div></div></div>
+    <div class="comp"><div class="stage sk" style="gap:8px">
+      <span class="badge b-active">Active</span><span class="badge b-upcoming">Upcoming: 11:33</span><span class="badge b-tfr">TFR Active</span>
+      <span class="badge b-flying">Flying</span><span class="badge b-ready">Ready</span><span class="live">LIVE</span><span class="chip-time">3:30 am</span><span class="chip-outline sk">30 sec</span>
+    </div>
+      <div class="info"><h3>Status badges <code>Badge</code></h3><ul class="anat"><li>Patrol lifecycle: Upcoming → Active, with TFR Active as an airspace override in red</li><li>Aircraft state: Ready / Flying; LIVE marks a streaming feed</li><li>Time chips: scheduled start, and an elapsed-since-alert counter</li></ul><div class="src">Seen across Flight Deck, Multi-dock grid, Mission schedule, Sensor alert</div></div></div>
+  </div>
+</section>
+
+<!-- 04 LISTS -->
+<section class="group" id="lists">
+  <div class="group-head"><h2><span class="code">04</span>Lists &amp; cards</h2>
+  <p>The left list is where the operator triages. Each card type answers "what is it, is it OK, and what's next" in three rows.</p></div>
+  <div class="grid">
+    <div class="comp"><div class="stage">
+      <div class="card sk">
+        <div class="h">AKC - Gate Checks<span class="badge b-active">Active</span></div>
+        <div class="b">West Building<small>Next: East Building</small></div>
+        <div class="f"><span class="initials">EC</span><span class="cnt"><svg class="ic"><use href="#i-drone"/></svg>85%</span><svg class="ic"><use href="#i-batt"/></svg><span class="r"><span class="cnt"><svg class="ic"><use href="#i-pin"/></svg>1</span><span class="cnt"><svg class="ic"><use href="#i-car"/></svg>2</span></span></div>
+      </div></div>
+      <div class="info"><h3>Patrol card <code>PatrolCard</code></h3>
+      <ul class="anat"><li>Header: patrol name + lifecycle badge</li><li>Body: current waypoint, next waypoint</li><li>Footer: pilot initials, aircraft battery, then detection counts by class (POI, vehicle, person)</li></ul>
+      <div class="src">Seen in Security Command · Flight Deck</div></div></div>
+    <div class="comp"><div class="stage" style="display:grid;gap:8px;justify-items:center">
+      <div class="attn sk"><b>BORDER VEC 292-310</b><span class="a"><svg class="ic"><use href="#i-plus"/></svg><svg class="ic"><use href="#i-play"/></svg><svg class="ic fill" viewBox="0 0 24 24"><path d="m12 4 8 8-8 8-8-8z" fill="none" stroke="currentColor" stroke-width="1.7"/></svg></span><small>North Building</small><small>X10-C</small><small>Every 30 mins</small></div>
+      <div class="attn dim sk"><b>HIGHWAY 9 - VEC 281</b><span></span><small>Highway 9 E/W</small><small></small><small>Scheduled · 12:00AM</small></div>
+    </div>
+      <div class="info"><h3>Operation row <code>OperationItem</code></h3>
+      <ul class="anat"><li>Red left stripe = Requires Attention; scheduled rows render at reduced opacity</li><li>Inline actions: add, start, locate on map</li><li>Assigned aircraft right-aligned (X10-C)</li></ul>
+      <div class="src">Seen in Flight Deck · Border corridor</div></div></div>
+    <div class="comp"><div class="stage">
+      <div class="drone-row sk">
+        <div class="thumb"><span class="live">LIVE</span></div>
+        <div class="nm">HAW-Alpha-Dock</div>
+        <div class="st"><span class="badge b-flying">Flying</span>75%<svg class="ic"><use href="#i-batt"/></svg></div>
+        <div class="sub">X10-01</div><div></div>
+        <div class="qa"><span><svg class="ic"><use href="#i-cam"/></svg></span><span><svg class="ic"><use href="#i-moon"/></svg></span><span><svg class="ic"><use href="#i-hex"/></svg></span><span><svg class="ic"><use href="#i-target"/></svg></span></div>
+      </div></div>
+      <div class="info"><h3>Dock / drone row <code>AssetItem</code></h3>
+      <ul class="anat"><li>Named by dock (HAW-Alpha-Dock), with the airframe ID as subtitle</li><li>Quick actions without opening the feed: camera, night mode, strobe, locate</li><li>Selected row = full-white 1.5px outline, matching the focused video tile</li></ul>
+      <div class="src">Seen in Multi-dock grid</div></div></div>
+    <div class="comp"><div class="stage" style="display:grid;gap:8px;justify-items:center">
+      <div class="sched sk"><div class="map"><svg viewBox="0 0 80 60" style="width:80px;height:60px"><path d="M10 8h40v18l-8 20H12z" fill="none" stroke="#1a6cf0" stroke-width="2.5"/></svg></div><div class="t">WO 02A-65D: Visibility perimeter patrol<div>Sector A<span class="chip-time">7:30 am</span></div></div></div>
+      <div class="sched sel sk"><div class="map"><svg viewBox="0 0 80 60" style="width:80px;height:60px"><path d="M8 12h20l2-6 30 8-14 16v24H10z" fill="none" stroke="#1a6cf0" stroke-width="2.5"/></svg></div><div class="t">WO 04B-11A: Vehicle lot patrol<div>Sector B<span class="chip-time">3:30 am</span></div></div></div>
+    </div>
+      <div class="info"><h3>Mission schedule item <code>MissionItem</code></h3>
+      <ul class="anat"><li>Route thumbnail on a light basemap so the shape reads at a glance</li><li>Work-order ID + mission name in caps (military tasking vernacular)</li><li>Sector + start time; selection = blue outline and scale-up</li></ul>
+      <div class="src">Seen in Mission schedule (15)</div></div></div>
+  </div>
+</section>
+
+<!-- 05 MAP -->
+<section class="group" id="map">
+  <div class="group-head"><h2><span class="code">05</span>Map layer</h2>
+  <p>Satellite basemap, drawn over with high-contrast, white-stroked symbols so they hold up against any terrain.</p></div>
+  <div class="grid">
+    <div class="comp"><div class="stage terrain" style="gap:28px">
+      <div class="mk"><div class="drone-mk"><svg class="ic fill" viewBox="0 0 24 24"><path d="M12 3 19 20 12 16 5 20z"/></svg></div><div class="drone-lbl">Ethan Caldwell<br><span>150ft</span> <span>85%</span></div></div>
+      <div class="mk"><div class="drone-mk sel"><svg class="ic fill" viewBox="0 0 24 24"><path d="M12 3 19 20 12 16 5 20z"/></svg></div><div class="drone-lbl">X10-C<br><span>180ft</span> <span>75%</span></div></div>
+    </div>
+      <div class="info"><h3>Aircraft marker <code>DroneMarker</code></h3>
+      <ul class="anat"><li>Heading arrow inside a white-ringed disc, plus a translucent camera FOV cone</li><li>Label: pilot or callsign, altitude, battery</li><li>Amber fill = the aircraft whose feed is focused</li></ul>
+      <div class="src">Seen in Flight Deck, Border corridor</div></div></div>
+    <div class="comp"><div class="stage terrain" style="gap:14px">
+      <span class="wp done">2</span><span class="wp done">3</span><span class="wp done">4</span><span class="wp next">5</span><span class="wp next">6</span><span class="dock-mk">Z</span>
+    </div>
+      <div class="info"><h3>Waypoints &amp; dock <code>RouteMarker</code></h3>
+      <ul class="anat"><li>Blue = flown leg, white = upcoming leg; the polyline color matches</li><li>Dock/base shown as a black disc with the Skydio mark</li></ul>
+      <div class="src">Seen in Flight Deck, Border corridor, Multi-dock grid</div></div></div>
+    <div class="comp"><div class="stage terrain" style="gap:22px">
+      <span class="diamond d-red"><svg class="ic"><use href="#i-person"/></svg></span>
+      <span class="diamond d-red"><svg class="ic"><use href="#i-car"/></svg></span>
+      <span class="diamond d-purple"><svg class="ic"><use href="#i-pin"/></svg></span>
+      <span class="diamond d-red" style="font-weight:800;font-size:16px"><b>!</b></span>
+    </div>
+      <div class="info"><h3>Detection &amp; alert markers <code>EventMarker</code></h3>
+      <ul class="anat"><li>Diamond = event; glyph = class (person, vehicle)</li><li>Purple = operator-dropped POI; "!" = unassigned alert</li><li>Same shapes TAK uses for hostile, so the two read as one family</li></ul>
+      <div class="src">Seen in Flight Deck, Border corridor</div></div></div>
+    <div class="comp"><div class="stage terrain" style="gap:26px">
+      <span class="tak hostile"></span>
+      <span class="tak friend"></span>
+      <svg class="tak unknown" viewBox="0 0 44 44"><path d="M22 4a8 8 0 0 1 8 8 8 8 0 0 1 0 20 8 8 0 0 1-16 0 8 8 0 0 1 0-20 8 8 0 0 1 8-8z" fill="#ffff80" stroke="#000" stroke-width="2"/></svg>
+      <span class="tak neutral"></span>
+    </div>
+      <div class="info"><h3>TAK affiliation markers <code>CoTMarker</code></h3>
+      <ul class="anat"><li>Hostile diamond, friend rectangle, unknown quatrefoil, neutral square</li><li>Shared both ways with the TAK server as Cursor-on-Target</li></ul>
+      <div class="src">Seen in ISR Command · TAK map</div></div></div>
+    <div class="comp"><div class="stage terrain" style="gap:16px;align-items:flex-start">
+      <div class="mapsearch sk"><svg class="ic"><use href="#i-search"/></svg>Search Map</div>
+      <div class="maptools sk"><span class="on">3D</span><span><svg class="ic"><use href="#i-layers"/></svg></span><span><svg class="ic"><use href="#i-target"/></svg></span><span><svg class="ic"><use href="#i-eye"/></svg></span></div>
+    </div>
+      <div class="info"><h3>Map controls <code>MapToolbar</code></h3>
+      <ul class="anat"><li>Floating search top-center; vertical tool stack top-right</li><li>3D toggle, layers, recenter on aircraft, visibility filters</li></ul>
+      <div class="src">Seen in every desktop map</div></div></div>
+    <div class="comp"><div class="stage terrain">
+      <div class="cmdbar sk"><span class="l">All Drones</span><span class="btn danger"><svg class="ic"><use href="#i-pause"/></svg>Pause</span><span class="btn"><svg class="ic"><use href="#i-descend"/></svg>Descend</span><span class="btn"><svg class="ic"><use href="#i-return"/></svg>Return</span></div>
+    </div>
+      <div class="info"><h3>Fleet command bar <code>FleetActions</code></h3>
+      <ul class="anat"><li>Docked bottom-center of the map; scope label at left ("All Drones")</li><li>Pause is the only filled red button: the universal safe stop</li></ul>
+      <div class="src">Seen in Flight Deck, Multi-dock grid</div></div></div>
+  </div>
+</section>
+
+<!-- 06 VIDEO -->
+<section class="group" id="video">
+  <div class="group-head"><h2><span class="code">06</span>Video &amp; HUD</h2>
+  <p>Each feed is a self-contained cockpit: identity bar on top, telemetry and camera controls floated over the video.</p></div>
+  <div class="grid wide">
+    <div class="comp"><div class="stage" style="display:grid;gap:10px;justify-items:stretch">
+      <div class="tile sk"><div class="hd"><b>SkydioX10-A</b><span class="who"><svg class="ic"><use href="#i-users"/></svg>Ethan Caldwell</span><span class="tools"><span class="sig">.ıl FUS &nbsp;⊘ NAV</span><span class="iconbtn"><svg class="ic"><use href="#i-share"/></svg></span><span class="iconbtn"><svg class="ic"><use href="#i-gear"/></svg></span><span class="iconbtn"><svg class="ic"><use href="#i-expand"/></svg></span><span class="iconbtn red"><svg class="ic"><use href="#i-return"/></svg></span></span></div><div class="vid"><div class="reticle"><i></i><i></i><i></i><i></i></div></div></div>
+      <div class="tile sel sk"><div class="hd"><b>X10-C</b><span class="who">Hive-01</span><span class="tools"><span class="iconbtn"><svg class="ic"><use href="#i-expand"/></svg></span></span></div></div>
+    </div>
+      <div class="info"><h3>Video tile <code>FeedTile</code></h3>
+      <ul class="anat"><li>Header: aircraft name, pilot or dock, link health (FUS = fused radio, NAV), share, settings, fullscreen</li><li>Red return-to-home sits at the far right, apart from the neutral icons</li><li>Focused tile: 2px amber border and amber-tinted header, matching its amber map marker</li></ul>
+      <div class="src">Seen in Flight Deck, Border corridor</div></div></div>
+    <div class="comp"><div class="stage" style="gap:18px">
+      <div class="hudbox sk">
+        <div><div class="batt-bar"><i></i><i></i><i></i><i></i></div><span class="v">85</span><span class="u" style="display:inline">%</span></div>
+        <div><div class="wind-bar"></div><span class="v">10</span> <span class="u" style="display:inline">MPH</span></div>
+        <div><span class="v">16 ↗</span><span class="u">WIND MPH</span></div>
+        <div><span class="v">210 FT</span><span class="u">MAX 400</span></div>
+      </div>
+      <div class="camstack sk">
+        <div class="row"><span><i class="recdot"></i>REC</span><span>›</span></div>
+        <div class="row"><span><i style="width:10px;height:10px;background:var(--blue);display:block"></i>COLOR</span><span>›</span></div>
+        <div class="row"><span class="ai"><i><svg class="ic"><use href="#i-scan"/></svg></i><i><svg class="ic"><use href="#i-person"/></svg></i><i><svg class="ic"><use href="#i-target"/></svg></i><i><svg class="ic"><use href="#i-moon"/></svg></i></span><span>›</span></div>
+      </div>
+    </div>
+      <div class="info"><h3>Telemetry block + camera stack <code>HUD.compact</code></h3>
+      <ul class="anat"><li>2×2 mono grid: battery, ground speed, wind, altitude against the 400 ft ceiling</li><li>Stack: record, sensor (COLOR / THERMAL), AI detection toggles; each row expands sideways</li><li>Green underline = that detector is on</li></ul>
+      <div class="src">Seen in Security Command · Flight Deck</div></div></div>
+    <div class="comp"><div class="stage" style="background:linear-gradient(160deg,#6b6553,#3e3b31)">
+      <div class="flightstrip sk">
+        <span class="ring"><svg viewBox="0 0 46 46"><circle cx="23" cy="23" r="19" stroke="#333" stroke-width="4" fill="none"/><circle cx="23" cy="23" r="19" stroke="#2aa84a" stroke-width="4" fill="none" stroke-dasharray="98 120"/><circle cx="23" cy="23" r="19" stroke="#df2a2f" stroke-width="4" fill="none" stroke-dasharray="8 120"/></svg>82</span>
+        <span class="stack"><span class="sigtag">.ıl</span><span class="k">MH</span></span>
+        <span class="stack"><span class="sigtag boxed">VIO .ıl</span><span class="sigtag">GPS .ıl</span></span>
+        <span class="stack"><span class="cell"><span class="k">HAL</span>191ft</span><span class="cell">◷ 98°</span></span>
+        <span class="stack"><span class="cell">⌁ 17mph</span><span class="cell">⊸ -22°</span></span>
+        <span class="stack"><span class="cell">↖ 3817ft</span><span class="cell">((·)) 2052 MHz</span></span>
+      </div>
+    </div>
+      <div class="info"><h3>Flight status strip <code>HUD.full</code></h3>
+      <ul class="anat"><li>Battery ring (green with red reserve slice), radio (MH = mesh), nav sources VIO + GPS shown separately</li><li>HAL = height above launch, heading, speed, gimbal pitch, distance, radio frequency</li><li>VIO gets its own chip because GPS-denied flight is a selling point</li></ul>
+      <div class="src">Seen in Controller · Shadow, Controller · Thermal</div></div></div>
+    <div class="comp"><div class="stage thermal" style="gap:26px">
+      <div class="reticle static" style="width:70px;height:62px"><i></i><i></i><i></i><i></i></div>
+      <div class="bbox"><span class="pin"><span class="diamond d-red" style="width:18px;height:18px;border-width:1.5px"></span></span><span class="tag">1-vehicle</span></div>
+      <div class="det-chip"><b>PERSON</b></div>
+      <div class="det-chip animal"><b>ANIMAL</b></div>
+    </div>
+      <div class="info"><h3>On-video detection <code>Reticle / BoundingBox</code></h3>
+      <ul class="anat"><li>Corner-bracket reticle in mint = AI lock on a subject</li><li>Amber box + class label = tracked subject, with its TAK marker pinned on top</li><li>Class tags for person / vehicle / animal (animal flagged amber to suppress false alarms)</li></ul>
+      <div class="src">Seen in Flight Deck, Controller · Shadow, Base Security AI detection</div></div></div>
+    <div class="comp"><div class="stage" style="gap:16px">
+      <div class="select sk" style="flex:none">Thermal<svg class="ic"><use href="#i-chev"/></svg></div>
+      <div style="display:flex;gap:4px;background:#0b0b0b;padding:4px;border-radius:4px"><span class="iconbtn" style="background:var(--blue)"><svg class="ic"><use href="#i-return"/></svg></span><span class="iconbtn" style="background:var(--s-3)"><svg class="ic"><use href="#i-dl"/></svg></span></div>
+      <div class="select sk" style="flex:none">Camera<svg class="ic"><use href="#i-chev"/></svg></div>
+      <div style="display:flex;gap:6px;align-items:center;background:var(--s-1);padding:4px 6px;border-radius:4px"><span class="ring" style="width:32px;height:32px;font-size:10px"><svg viewBox="0 0 46 46"><circle cx="23" cy="23" r="19" stroke="#ddd" stroke-width="3" fill="none" stroke-dasharray="90 120"/></svg>6:47</span><svg class="ic"><use href="#i-chev"/></svg><span class="iconbtn red" style="font-size:8px;font-weight:800">STOP</span></div>
+    </div>
+      <div class="info"><h3>Feed footer &amp; corner controls <code>FeedControls</code></h3>
+      <ul class="anat"><li>Sensor and camera pickers bottom corners, RTH + save clip between</li><li>Top-right: remaining flight time ring and an octagonal STOP</li></ul>
+      <div class="src">Seen in Multi-dock grid, Border corridor</div></div></div>
+    <div class="comp"><div class="stage" style="gap:18px">
+      <div class="attach sk">Attach.<span><svg class="ic"><use href="#i-pen"/></svg></span><span class="on"><svg class="ic"><use href="#i-speaker"/></svg></span><span><svg class="ic"><use href="#i-target"/></svg></span></div>
+      <span class="tip">Enable speaker</span>
+      <div class="share sk"><b>Live Stream for TARU-26</b><div class="qr"></div><span style="color:var(--t-2)">Anyone with the link can view this stream for 24 hours.</span><span class="btn block">Copy ReadyLink</span></div>
+    </div>
+      <div class="info"><h3>Payload &amp; sharing <code>AttachmentBar / StreamShare</code></h3>
+      <ul class="anat"><li>Attachment rail for speaker, spotlight, etc. with hover tooltips</li><li>Share sheet: QR + expiring link so a commander can watch on a phone</li></ul>
+      <div class="src">Seen in Base Security (speaker, live stream)</div></div></div>
+  </div>
+</section>
+
+<!-- 07 CONTROLLER -->
+<section class="group" id="controller">
+  <div class="group-head"><h2><span class="code">07</span>Controller (X10D handheld)</h2>
+  <p>Same visual language, re-cut for a 7" screen, gloves and sun. Targets grow to ~44px, labels shrink to icons, and every tool sits on a screen edge next to a thumb.</p></div>
+  <div class="grid">
+    <div class="comp"><div class="stage" style="gap:20px;align-items:flex-start">
+      <div class="ctl-rail sk"><span><svg class="ic"><use href="#i-panels"/></svg></span><span class="fly"><svg class="ic"><use href="#i-plus"/></svg></span><span><svg class="ic"><use href="#i-send"/></svg></span><span class="fly"><svg class="ic"><use href="#i-gear"/></svg></span><span class="on fly"><svg class="ic"><use href="#i-scan"/></svg></span><span><svg class="ic"><use href="#i-hex"/></svg></span><span><svg class="ic"><use href="#i-chat"/></svg></span></div>
+      <div class="flyout sk"><div class="r"><span class="ttl">Shadow</span><svg class="ic"><use href="#i-gear"/></svg></div><div class="r">Subject Tracking<span class="toggle"></span></div><div>Mode</div><div class="seg blue"><span class="on">Track</span><span>Follow</span></div><div>Subject TAK Marker Type</div><div class="sel2"><span class="diamond d-red" style="width:22px;height:22px;border:none"></span><div class="select">Hostile<svg class="ic"><use href="#i-chev"/></svg></div></div></div>
+    </div>
+      <div class="info"><h3>Tool rail + flyout <code>ToolRail / Flyout</code></h3>
+      <ul class="anat"><li>Left-edge rail; a small caret marks tools that open a flyout</li><li>Active tool: blue fill with a mint indicator bar</li><li>Flyout groups one feature's settings; here a tracked subject is published to TAK as Hostile</li></ul>
+      <div class="src">Seen in Controller · Shadow</div></div></div>
+    <div class="comp"><div class="stage" style="gap:16px">
+      <div class="zoom sk"><span><svg class="ic"><use href="#i-bell"/></svg></span><span class="on">4.3x</span><span>1x</span></div>
+      <div style="display:grid;gap:14px;justify-items:center"><div class="camtog"><span class="on"><svg class="ic"><use href="#i-cam"/></svg></span><span><svg class="ic"><use href="#i-video"/></svg></span></div><div class="recbtn"></div><div class="recbtn stop"></div></div>
+    </div>
+      <div class="info"><h3>Right-edge capture column <code>CaptureRail</code></h3>
+      <ul class="anat"><li>Zoom presets with the live value in amber</li><li>Photo / video toggle above a large shutter (red disc = idle, white square = recording)</li></ul>
+      <div class="src">Seen in Controller · Shadow, Controller · Thermal</div></div></div>
+    <div class="comp"><div class="stage thermal" style="gap:18px">
+      <div class="thermal-menu sk"><span>⌖ Spot</span><span>⬚ Region</span><span>◐ Black Hot</span><span>↻ Manual FFC</span><span>⋯ More</span></div>
+      <div class="readout sk"><div>◺ 481 ft</div><div class="mono">⌖ 14R MS 85873 81236</div></div>
+    </div>
+      <div class="info"><h3>Thermal menu + target readout <code>ThermalMenu / TargetReadout</code></h3>
+      <ul class="anat"><li>Radiometric tools: spot and region temperature, palette (Black Hot), flat-field correction</li><li>Center readout: slant range and MGRS grid of whatever is under the crosshair</li></ul>
+      <div class="src">Seen in Controller · Thermal, Controller · Shadow</div></div></div>
+    <div class="comp"><div class="stage">
+      <div class="relief sk"><div class="th"></div><div class="nm">SkydioX10-R388<small>Flying</small></div><span class="ring" style="width:40px;height:40px;font-size:13px"><svg viewBox="0 0 46 46"><circle cx="23" cy="23" r="19" stroke="#2aa84a" stroke-width="4" fill="none" stroke-dasharray="72 120"/></svg>60</span><span><b style="font-size:10px;color:var(--t-2)">HAL</b> 166ft</span><div class="hand"><i>»</i><span>Relief In Progress</span></div></div>
+    </div>
+      <div class="info"><h3>Relief handoff bar <code>ReliefBar</code></h3>
+      <ul class="anat"><li>Shows the incoming aircraft (thumbnail, state, battery, altitude) while the current one holds the target</li><li>Handoff state as a progress control; overwatch continues without a gap</li></ul>
+      <div class="src">Seen in Controller · Shadow</div></div></div>
+  </div>
+</section>
+
+<!-- 08 ISR -->
+<section class="group" id="isr">
+  <div class="group-head"><h2><span class="code">08</span>ISR Command / TAK layer</h2>
+  <p>When Skydio speaks into TAK, it adopts TAK's look: monospace caps, MGRS everywhere, affiliation symbols. This is a deliberate second dialect, not drift.</p></div>
+  <div class="grid">
+    <div class="comp"><div class="stage terrain" style="display:grid;gap:10px">
+      <div class="isr-toast isr"><div><span>X10-Bravo is en route</span><span style="color:#bdbdbd">Arriving in 3min</span></div></div>
+      <div class="isr-toast red isr"><div><span>Prepare relief drone</span><span style="color:#bdbdbd;text-transform:none;letter-spacing:.04em">X10-Alpha will need relief in 10 minutes</span></div></div>
+    </div>
+      <div class="info"><h3>Mission toast <code>IsrToast</code></h3>
+      <ul class="anat"><li>Colored left bar for urgency (amber = info/ETA, red = action needed)</li><li>Written as status reports, with an ETA or deadline in the second line</li></ul>
+      <div class="src">Seen in ISR Command</div></div></div>
+    <div class="comp"><div class="stage terrain" style="gap:16px">
+      <div class="pip"><div class="r isr" style="letter-spacing:.06em">X10-Bravo<span style="display:flex;gap:6px;align-items:center"><span class="segbatt"><i></i><i></i><i></i><i></i><i></i></span>90%</span></div><div class="v"></div></div>
+      <div class="mgrs">11S MT 41214 48542<br>13°M</div>
+    </div>
+      <div class="info"><h3>Picture-in-picture + MGRS readout <code>PipCard / GridReadout</code></h3>
+      <ul class="anat"><li>Inset feed with segmented battery, sitting on the TAK map</li><li>Green-on-black MGRS + magnetic heading, the format soldiers call over radio</li></ul>
+      <div class="src">Seen in ISR Command · TAK map</div></div></div>
+    <div class="comp"><div class="stage terrain" style="gap:22px">
+      <div class="mk"><div class="drone-mk" style="width:44px;height:44px;border-width:4px"><svg class="ic fill" viewBox="0 0 24 24"><path d="M19 5 6 11l5 2 2 5z"/></svg></div><div class="drone-lbl isr" style="font-size:13px">X10-Alpha<br>180ft 79%</div></div>
+      <svg width="4" height="70"><path d="M2 0v70" stroke="#fff" stroke-width="3"/></svg>
+      <div class="mk"><div class="drone-mk" style="width:44px;height:44px;border-width:4px"><svg class="ic fill" viewBox="0 0 24 24"><path d="M12 3 19 20 12 16 5 20z"/></svg></div><div class="drone-lbl isr" style="font-size:13px">X10-Bravo<br>180ft 79%</div></div>
+    </div>
+      <div class="info"><h3>Relief tether <code>ReliefLink</code></h3>
+      <ul class="anat"><li>A straight white line joins the outgoing and incoming aircraft</li><li>Callsign labels switch to TAK mono on this surface</li></ul>
+      <div class="src">Seen in ISR Command · TAK map</div></div></div>
+  </div>
+</section>
+
+<!-- 09 ALERTS -->
+<section class="group" id="alerts">
+  <div class="group-head"><h2><span class="code">09</span>Alerts &amp; incidents</h2>
+  <p>The base and border products are built around one loop: a sensor fires, a dock launches, an operator claims it, and the response is closed out. Each step has its own card.</p></div>
+  <div class="grid">
+    <div class="comp"><div class="stage">
+      <div class="incident sk"><div class="top"><svg class="ic"><use href="#i-back"/></svg>Suspicious activity: LTC Y36</div><div class="body"><b>Active Incident</b><div class="sensor"><div class="ico"><span class="diamond d-yellow" style="width:24px;height:24px;border-width:1.5px"><svg class="ic" style="width:13px;height:13px"><use href="#i-person"/></svg></span></div><div class="t">South entrance gate sensor<small>IDS SYSTEM ALERT</small></div><span class="chip-outline">30 sec</span></div></div><div class="more"><svg class="ic"><use href="#i-chev"/></svg></div></div>
+    </div>
+      <div class="info"><h3>Sensor alert card <code>IncidentCard</code></h3>
+      <ul class="anat"><li>Title = event type + location code</li><li>Source row: sensor name, integration (IDS SYSTEM ALERT), seconds since it fired</li><li>Expands to show more sensor hits for the same incident</li></ul>
+      <div class="src">Seen in Sensor alert → launch</div></div></div>
+    <div class="comp"><div class="stage">
+      <div class="launch sk"><svg class="render" viewBox="0 0 150 60"><g fill="none" stroke="#cfd3d7" stroke-width="5" stroke-linecap="round"><path d="M20 14 60 30M130 14 90 30M20 50 60 32M130 50 90 32"/></g><rect x="58" y="22" width="34" height="20" rx="5" fill="#9ba1a7"/><circle cx="75" cy="38" r="7" fill="#2b2e31"/></svg><div class="nm">SkydioX10D-a8b0</div><div class="ok"><svg class="ic"><use href="#i-check"/></svg>Ready for Flight</div><span class="btn primary block">Launching</span></div>
+    </div>
+      <div class="info"><h3>Dock launch card <code>LaunchCard</code></h3>
+      <ul class="anat"><li>Aircraft render + ID, preflight state in green</li><li>Full-width blue CTA that becomes a live state label (Launching)</li></ul>
+      <div class="src">Seen in Sensor alert → launch</div></div></div>
+    <div class="comp"><div class="stage">
+      <div class="kv sk"><div class="hd">Motion detected<br>on perimeter road<svg class="ic"><use href="#i-x"/></svg></div><div class="rs">Response Status<div class="select">🚨 Responding<svg class="ic"><use href="#i-chev"/></svg></div></div><dl><dt>Claimed By</dt><dd>Cpl. Jonathan Mayfield</dd><dt>Event Time</dt><dd>10:12 PM on 02/12/2024</dd><dt>Incident ID</dt><dd>134682570</dd><dt>Area</dt><dd>East Sector</dd><dt>Coordinates</dt><dd>39°50'39.0"N 119°47'13.9"W<svg class="ic"><use href="#i-copy"/></svg></dd></dl><div class="ft"><span class="btn block"><svg class="ic"><use href="#i-check"/></svg>End Response</span></div></div>
+    </div>
+      <div class="info"><h3>Incident detail <code>IncidentDetail</code></h3>
+      <ul class="anat"><li>Caps title; status select at top so the state is the first thing you change</li><li>Key-value list: who claimed it (with rank), time, ID, area, copyable coordinates</li><li>Neutral, deliberately quiet "End Response" closes the loop</li></ul>
+      <div class="src">Seen in Incident detail</div></div></div>
+    <div class="comp"><div class="stage thermal" style="gap:16px">
+      <span class="live big">LIVE</span>
+      <div class="toast2 sk"><span class="diamond d-red" style="width:18px;height:18px;border-width:1.5px"></span>Motion detected · Sector B</div>
+    </div>
+      <div class="info"><h3>Live indicator &amp; inline alert <code>LiveTag / AlertToast</code></h3>
+      <ul class="anat"><li>Oversized LIVE + camera glyph on shared/broadcast views</li><li>Toast pairs the event diamond with a short location line (pattern inferred from the cards above)</li></ul>
+      <div class="src">Seen in Sensor alert → launch</div></div></div>
+  </div>
+</section>
+
+<!-- 10 PRINCIPLES -->
+<section class="group" id="principles">
+  <div class="group-head"><h2><span class="code">10</span>Design principles</h2>
+  <p>Twelve principles read off the components above, each written as rules a UI generator can follow and a linter can check. MUST and NEVER are hard constraints. CHECK is how to test a generated screen against the principle.</p></div>
+  <div class="prin">
+    <div class="pr"><div class="id">P01</div><div><h3>Color is a signal, never decoration</h3><p class="why">Every saturated hue in the product stands for an operational meaning. There is no brand accent in the product chrome. The fewer colors on screen, the faster an anomaly shows.</p><div class="ev">Evidence: surface ramp, Badge, Pause button, LIVE tag</div></div>
+      <ul class="rules"><li><span class="k must">MUST</span>Pick every non-neutral color from the six signal tokens, each by its meaning: action-blue, alert-red, ok-green, reticle, focus-amber, poi-purple.</li><li><span class="k never">NEVER</span>Use a signal color for decoration, branding, charts or empty states.</li><li><span class="k check">CHECK</span>Every colored element can be traced to an entity state in the ontology.</li></ul></div>
+    <div class="pr"><div class="id">P02</div><div><h3>Red is reserved for stop, hostile, and live</h3><p class="why">Pause, STOP, return-to-home, LIVE and hostile markers are the only red elements. Because red is scarce, the safe-stop control is always the easiest thing to find.</p><div class="ev">Evidence: FleetActions, FeedTile header, FeedControls, CoTMarker</div></div>
+      <ul class="rules"><li><span class="k must">MUST</span>Render a filled-red stop or return control inside every container that shows a flying aircraft.</li><li><span class="k never">NEVER</span>Use filled red for a destructive admin action such as delete or archive. Those use neutral buttons with a confirmation step.</li><li><span class="k check">CHECK</span>Count of filled-red elements per aircraft container is at least 1. Count of red elements not mapped to stop, hostile, live or alert is 0.</li></ul></div>
+    <div class="pr"><div class="id">P03</div><div><h3>One entity, one identity, every pane</h3><p class="why">A selected aircraft is amber on the map, amber-bordered in the feed grid and outlined in the list, all at once. The operator never has to match names across panes.</p><div class="ev">Evidence: DroneMarker.sel, FeedTile.sel, AssetItem selected</div></div>
+      <ul class="rules"><li><span class="k must">MUST</span>Bind selection to the entity ID, not the view. Selecting it anywhere applies the focus token everywhere it is rendered.</li><li><span class="k must">MUST</span>Keep one entity in focus at a time per operator.</li><li><span class="k check">CHECK</span>For any focused ID, every rendering of that ID carries the focus treatment.</li></ul></div>
+    <div class="pr"><div class="id">P04</div><div><h3>Layout follows the response loop</h3><p class="why">Desktop columns run left to right in the order of a response: triage the list, place it on the map, act in the feed. Each command bar attaches to the view whose scope it acts on.</p><div class="ev">Evidence: Flight Deck, Border corridor, Multi-dock grid</div></div>
+      <ul class="rules"><li><span class="k must">MUST</span>Order desktop panes as Nav → List (triage) → Map (locate) → Feeds (act).</li><li><span class="k must">MUST</span>Put fleet-wide commands under the map, and per-aircraft commands inside that aircraft's feed.</li><li><span class="k never">NEVER</span>Put a command that affects many aircraft inside a single aircraft's container.</li></ul></div>
+    <div class="pr"><div class="id">P05</div><div><h3>Lead with state; the system is already working</h3><p class="why">Most words in the UI describe what the autonomy is doing: Launching, Relief In Progress, Every 30 mins, Upcoming 11:33. The operator supervises more than they fly.</p><div class="ev">Evidence: PatrolCard, LaunchCard, ReliefBar, IsrToast</div></div>
+      <ul class="rules"><li><span class="k must">MUST</span>Show the current state as the first readable element of every entity card.</li><li><span class="k must">MUST</span>Give time-bound states their time: a start time, an elapsed time or an ETA.</li><li><span class="k check">CHECK</span>No entity card renders without a state badge or state label.</li></ul></div>
+    <div class="pr"><div class="id">P06</div><div><h3>Machine data looks like machine data</h3><p class="why">Three type voices tell the operator who is speaking. Monospace means the aircraft is measuring something. Uppercase means the system wrote it. Sentence case means a person named it.</p><div class="ev">Evidence: HUD.compact, IncidentDetail title, AssetItem name</div></div>
+      <ul class="rules"><li><span class="k must">MUST</span>Set telemetry values in mono with explicit units (FT, MPH, %, MHz, °).</li><li><span class="k must">MUST</span>Set system-generated titles in caps: alert types, work orders, TAK messages.</li><li><span class="k never">NEVER</span>Show a measurement without a unit, or a coordinate without its format (MGRS or lat/long).</li></ul></div>
+    <div class="pr"><div class="id">P07</div><div><h3>Speak the destination's dialect</h3><p class="why">Anything that lands in TAK uses TAK's own look: MIL-STD-2525 affiliation symbols, MGRS grids and mono caps. It stays readable to a soldier who has never used a Skydio product.</p><div class="ev">Evidence: CoTMarker, IsrToast, GridReadout, Shadow flyout</div></div>
+      <ul class="rules"><li><span class="k must">MUST</span>Render any entity that is shared over CoT with standard 2525 shape and fill.</li><li><span class="k never">NEVER</span>Restyle, recolor or round off affiliation symbols to match the Skydio look.</li><li><span class="k check">CHECK</span>Context = TAK switches type to the mono caps voice and location to MGRS.</li></ul></div>
+    <div class="pr"><div class="id">P08</div><div><h3>Density changes by device; vocabulary doesn't</h3><p class="why">The desktop labels everything. The controller collapses the same functions into edge rails and flyouts sized for gloves and sunlight. HAL, VIO, GPS and MGRS mean the same thing on both.</p><div class="ev">Evidence: NavRail vs ToolRail, HUD.compact vs HUD.full</div></div>
+      <ul class="rules"><li><span class="k must">MUST</span>On the controller, place tools on the left and right screen edges, keep touch targets at 44px or more, and leave the video center clear.</li><li><span class="k must">MUST</span>Use one shared abbreviation dictionary across both surfaces.</li><li><span class="k never">NEVER</span>Introduce a control on one surface that does the same job under a different name on the other.</li></ul></div>
+    <div class="pr"><div class="id">P09</div><div><h3>Overlays carry their own contrast</h3><p class="why">Maps and video are unpredictable backgrounds: desert, snow, thermal white, night. Every overlay brings its own contrast with a white stroke, a dark scrim or a dark chip.</p><div class="ev">Evidence: DroneMarker ring, waypoints, HUD boxes, drone labels</div></div>
+      <ul class="rules"><li><span class="k must">MUST</span>Give map symbols a 2px or wider white or black stroke, and put text over imagery on a scrim of at least 55% opacity.</li><li><span class="k never">NEVER</span>Rely on fill color alone to make a symbol stand out from imagery.</li></ul></div>
+    <div class="pr"><div class="id">P10</div><div><h3>Every alert has a source, an owner, a clock and an end</h3><p class="why">The base and border products run one loop: a sensor fires, a dock launches, a person claims the incident, and the response is closed. The UI never leaves an alert unowned or open-ended.</p><div class="ev">Evidence: IncidentCard, LaunchCard, IncidentDetail</div></div>
+      <ul class="rules"><li><span class="k must">MUST</span>Show on every Incident: the source integration, the time since it fired, who claimed it, and a close action.</li><li><span class="k must">MUST</span>Make the response status the first editable field.</li><li><span class="k check">CHECK</span>No incident can render without an "unclaimed" or "claimed by" value.</li></ul></div>
+    <div class="pr"><div class="id">P11</div><div><h3>Cards share a three-row grammar</h3><p class="why">Patrol, asset, mission and incident cards all answer three questions in the same order. That lets an operator scan a long list without reading every card.</p><div class="ev">Evidence: PatrolCard, AssetItem, MissionItem, IncidentCard</div></div>
+      <ul class="rules"><li><span class="k must">MUST</span>Row 1 holds identity and state. Row 2 holds where it is and what comes next. Row 3 holds who is on it, its health, and counts.</li><li><span class="k must">MUST</span>Put the state badge top-right and the inline actions bottom or right, in the same place on every card.</li></ul></div>
+    <div class="pr"><div class="id">P12</div><div><h3>Quiet surfaces, sharp edges</h3><p class="why">Panes separate by stepping the fill, not by drawing borders, and corners stay at 2–4px. Four dense panes read as one calm instrument instead of a wall of boxes.</p><div class="ev">Evidence: surface ramp, panel headers, controls</div></div>
+      <ul class="rules"><li><span class="k must">MUST</span>Nest surfaces one step lighter per level (surface-0 → 1 → 2 → 3).</li><li><span class="k never">NEVER</span>Use radii above 4px on controls, shadows on in-pane cards, or pill-shaped status badges.</li></ul></div>
+  </div>
+</section>
+
+<!-- 11 ONTOLOGY -->
+<section class="group" id="ontology">
+  <div class="group-head"><h2><span class="code">11</span>Product ontology</h2>
+  <p>The things the product is about, what each one means to an operator, how they relate, which states they move through, and which component draws them. A generator should start here: pick the entities a screen is about, then let the ontology choose the components.</p></div>
+
+  <div class="lanes">
+  <svg viewBox="0 0 1320 616" role="img" aria-label="Ontology diagram: six lanes (place, assets, people, tasking, triggers, perception) with the entities in each and the main relationships between them">
+    <defs>
+      <marker id="ah" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0 10 5 0 10z" fill="#6f757c"/></marker>
+      <marker id="ahb" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0 10 5 0 10z" fill="#4d8dff"/></marker>
+    </defs>
+    <g>
+      <rect x="0" y="20" width="1320" height="96" fill="#111315"/><rect x="0" y="212" width="1320" height="96" fill="#111315"/><rect x="0" y="404" width="1320" height="96" fill="#111315"/>
+      <g font-family="IBM Plex Mono, monospace" font-size="11" fill="#8a9097" letter-spacing="1.2">
+        <text x="16" y="64">PLACE</text><text x="16" y="80" font-size="9.5" fill="#5d636a">where</text>
+        <text x="16" y="160">ASSETS</text><text x="16" y="176" font-size="9.5" fill="#5d636a">with what</text>
+        <text x="16" y="256">PEOPLE</text><text x="16" y="272" font-size="9.5" fill="#5d636a">by whom</text>
+        <text x="16" y="352">TASKING</text><text x="16" y="368" font-size="9.5" fill="#5d636a">what to do</text>
+        <text x="16" y="448">TRIGGERS</text><text x="16" y="464" font-size="9.5" fill="#5d636a">why now</text>
+        <text x="16" y="544">PERCEPTION</text><text x="16" y="560" font-size="9.5" fill="#5d636a">what is seen</text>
+      </g>
+    </g>
+    <!-- in-lane edges -->
+    <g stroke="#6f757c" stroke-width="1.5" fill="none" marker-end="url(#ah)">
+      <path d="M300 68h48"/><path d="M500 68h48"/><path d="M750 68h-48"/>
+      <path d="M500 164h48"/><path d="M700 164h48"/>
+      <path d="M300 356h48"/><path d="M500 356h48"/><path d="M700 356h48"/>
+      <path d="M300 452h48"/><path d="M500 452h48"/>
+      <path d="M500 548h48"/><path d="M700 548h48"/><path d="M900 548h48"/><path d="M1100 548h48"/>
+    </g>
+    <g font-family="Inter, sans-serif" font-size="10" fill="#8a9097" text-anchor="middle">
+      <text x="325" y="40">operates</text><text x="525" y="40">divides into</text><text x="725" y="40">constrains</text>
+      <text x="525" y="136">houses</text><text x="725" y="136">carries</text>
+      <text x="325" y="328">tasks</text><text x="525" y="328">follows</text><text x="725" y="328">made of</text>
+      <text x="325" y="424">emits</text><text x="525" y="424">opens</text>
+      <text x="525" y="520">analyzed to</text><text x="725" y="520">promoted to</text><text x="925" y="520">shared as</text><text x="1125" y="520">publishes to</text>
+    </g>
+    <!-- cross-lane edges -->
+    <g stroke="#4d8dff" stroke-width="1.5" fill="none" marker-end="url(#ahb)">
+      <path d="M425 90V140"/>
+      <path d="M605 430V410H425V380"/>
+      <path d="M425 334V240H605V188"/>
+      <path d="M1025 238V200H645V188"/>
+      <path d="M1025 282V418H645V428"/>
+      <path d="M900 164H925V512H645V524"/>
+    </g>
+    <g font-family="Inter, sans-serif" font-size="10.5" fill="#7fb0ff">
+      <text x="433" y="122">hosts</text>
+      <text x="440" y="404">dispatches</text>
+      <text x="440" y="234">assigned to</text>
+      <text x="950" y="196">pilots</text>
+      <text x="950" y="413">claims</text>
+      <text x="932" y="470">produces</text>
+    </g>
+    <!-- nodes -->
+    <g font-family="Inter, sans-serif">
+      <g transform="translate(150 46)"><rect width="150" height="44" rx="3" fill="#1c1e21" stroke="#3a3e43"/><text x="12" y="19" font-size="13" font-weight="600" fill="#eceef0">Organization</text><text x="12" y="34" font-size="10" fill="#7d838a" font-family="IBM Plex Mono, monospace">tenant</text></g>
+      <g transform="translate(350 46)"><rect width="150" height="44" rx="3" fill="#1c1e21" stroke="#3a3e43"/><text x="12" y="19" font-size="13" font-weight="600" fill="#eceef0">Site</text><text x="12" y="34" font-size="10" fill="#7d838a" font-family="IBM Plex Mono, monospace">facility · base</text></g>
+      <g transform="translate(550 46)"><rect width="150" height="44" rx="3" fill="#1c1e21" stroke="#3a3e43"/><text x="12" y="19" font-size="13" font-weight="600" fill="#eceef0">Sector / Zone</text><text x="12" y="34" font-size="10" fill="#7d838a" font-family="IBM Plex Mono, monospace">area of responsibility</text></g>
+      <g transform="translate(750 46)"><rect width="150" height="44" rx="3" fill="#2a1416" stroke="#7a2a2e"/><text x="12" y="19" font-size="13" font-weight="600" fill="#eceef0">Airspace limit</text><text x="12" y="34" font-size="10" fill="#c98a8d" font-family="IBM Plex Mono, monospace">TFR · geofence</text></g>
+
+      <g transform="translate(350 142)"><rect width="150" height="44" rx="3" fill="#1c1e21" stroke="#3a3e43"/><text x="12" y="19" font-size="13" font-weight="600" fill="#eceef0">Dock</text><text x="12" y="34" font-size="10" fill="#7d838a" font-family="IBM Plex Mono, monospace">launch · charge</text></g>
+      <g transform="translate(550 142)"><rect width="150" height="44" rx="3" fill="#10284f" stroke="#1a6cf0"/><text x="12" y="19" font-size="13" font-weight="600" fill="#eceef0">Aircraft</text><text x="12" y="34" font-size="10" fill="#9cc0ff" font-family="IBM Plex Mono, monospace">X10 / X10D</text></g>
+      <g transform="translate(750 142)"><rect width="150" height="44" rx="3" fill="#1c1e21" stroke="#3a3e43"/><text x="12" y="19" font-size="13" font-weight="600" fill="#eceef0">Sensor / Payload</text><text x="12" y="34" font-size="10" fill="#7d838a" font-family="IBM Plex Mono, monospace">color · thermal · spk</text></g>
+
+      <g transform="translate(950 238)"><rect width="150" height="44" rx="3" fill="#1c1e21" stroke="#3a3e43"/><text x="12" y="19" font-size="13" font-weight="600" fill="#eceef0">Operator</text><text x="12" y="34" font-size="10" fill="#7d838a" font-family="IBM Plex Mono, monospace">pilot · responder</text></g>
+
+      <g transform="translate(150 334)"><rect width="150" height="44" rx="3" fill="#1c1e21" stroke="#3a3e43"/><text x="12" y="19" font-size="13" font-weight="600" fill="#eceef0">Work order</text><text x="12" y="34" font-size="10" fill="#7d838a" font-family="IBM Plex Mono, monospace">WO 04B-11A</text></g>
+      <g transform="translate(350 334)"><rect width="150" height="44" rx="3" fill="#1c1e21" stroke="#3a3e43"/><text x="12" y="19" font-size="13" font-weight="600" fill="#eceef0">Mission</text><text x="12" y="34" font-size="10" fill="#7d838a" font-family="IBM Plex Mono, monospace">patrol · response</text></g>
+      <g transform="translate(550 334)"><rect width="150" height="44" rx="3" fill="#1c1e21" stroke="#3a3e43"/><text x="12" y="19" font-size="13" font-weight="600" fill="#eceef0">Route</text><text x="12" y="34" font-size="10" fill="#7d838a" font-family="IBM Plex Mono, monospace">path · cadence</text></g>
+      <g transform="translate(750 334)"><rect width="150" height="44" rx="3" fill="#1c1e21" stroke="#3a3e43"/><text x="12" y="19" font-size="13" font-weight="600" fill="#eceef0">Waypoint</text><text x="12" y="34" font-size="10" fill="#7d838a" font-family="IBM Plex Mono, monospace">ordered stop</text></g>
+
+      <g transform="translate(150 430)"><rect width="150" height="44" rx="3" fill="#1c1e21" stroke="#3a3e43"/><text x="12" y="19" font-size="13" font-weight="600" fill="#eceef0">Integration</text><text x="12" y="34" font-size="10" fill="#7d838a" font-family="IBM Plex Mono, monospace">IDS · VMS · TAK</text></g>
+      <g transform="translate(350 430)"><rect width="150" height="44" rx="3" fill="#1c1e21" stroke="#3a3e43"/><text x="12" y="19" font-size="13" font-weight="600" fill="#eceef0">Sensor alert</text><text x="12" y="34" font-size="10" fill="#7d838a" font-family="IBM Plex Mono, monospace">gate · motion</text></g>
+      <g transform="translate(550 430)"><rect width="150" height="44" rx="3" fill="#2a1416" stroke="#7a2a2e"/><text x="12" y="19" font-size="13" font-weight="600" fill="#eceef0">Incident</text><text x="12" y="34" font-size="10" fill="#c98a8d" font-family="IBM Plex Mono, monospace">claim · resolve</text></g>
+
+      <g transform="translate(350 526)"><rect width="150" height="44" rx="3" fill="#1c1e21" stroke="#3a3e43"/><text x="12" y="19" font-size="13" font-weight="600" fill="#eceef0">Stream</text><text x="12" y="34" font-size="10" fill="#7d838a" font-family="IBM Plex Mono, monospace">live · recorded</text></g>
+      <g transform="translate(550 526)"><rect width="150" height="44" rx="3" fill="#0f3326" stroke="#1fe3a2"/><text x="12" y="19" font-size="13" font-weight="600" fill="#eceef0">Detection</text><text x="12" y="34" font-size="10" fill="#7fe8c4" font-family="IBM Plex Mono, monospace">person · vehicle</text></g>
+      <g transform="translate(750 526)"><rect width="150" height="44" rx="3" fill="#3a2e08" stroke="#f5b400"/><text x="12" y="19" font-size="13" font-weight="600" fill="#eceef0">Subject</text><text x="12" y="34" font-size="10" fill="#f0d27a" font-family="IBM Plex Mono, monospace">tracked target</text></g>
+      <g transform="translate(950 526)"><rect width="150" height="44" rx="3" fill="#1c1e21" stroke="#3a3e43"/><text x="12" y="19" font-size="13" font-weight="600" fill="#eceef0">Marker (CoT)</text><text x="12" y="34" font-size="10" fill="#7d838a" font-family="IBM Plex Mono, monospace">affiliation · MGRS</text></g>
+      <g transform="translate(1150 526)"><rect width="150" height="44" rx="3" fill="#1c1e21" stroke="#3a3e43" stroke-dasharray="4 3"/><text x="12" y="19" font-size="13" font-weight="600" fill="#eceef0">TAK network</text><text x="12" y="34" font-size="10" fill="#7d838a" font-family="IBM Plex Mono, monospace">external</text></g>
+    </g>
+  </svg>
+  </div>
+  <div class="olegend"><span><i style="border-color:#6f757c"></i>Relationship within a lane</span><span><i style="border-color:#4d8dff"></i>Relationship across lanes</span><span>Node fill marks the color token that entity owns: blue aircraft, red incident and limits, mint detection, amber subject</span></div>
+
+  <div class="tbl-wrap"><table class="onto">
+    <thead><tr><th>Entity</th><th>What it means to the operator</th><th>Key attributes</th><th>States</th><th>Rendered as</th></tr></thead>
+    <tbody>
+      <tr class="lane"><td colspan="5">Place · where the work happens</td></tr>
+      <tr><td>Organization<small>tenant</small></td><td>The customer program you are working inside, such as a base security office or a border sector. It sets who can see what.</td><td>name, logo, deployment (cloud / on-prem)</td><td><div class="st"><span>—</span></div></td><td><code>NavRail</code> footer org switcher</td></tr>
+      <tr><td>Site<small>facility</small></td><td>A physical place you are responsible for. It is the top-level grouping for patrols and docks.</td><td>name, boundary, docks[]</td><td><div class="st"><span>—</span></div></td><td><code>Collapsible</code> group header, map extent</td></tr>
+      <tr><td>Sector / Zone<small>area</small></td><td>A piece of a site with its own owner and patrol cadence. Incidents report where they are by sector.</td><td>name, polygon, site</td><td><div class="st"><span>normal</span><span>alerting</span></div></td><td>Map polygon, <code>MissionItem</code> sector line, Area row</td></tr>
+      <tr><td>Airspace limit<small>TFR · geofence</small></td><td>A place you may not fly, or may fly only under conditions. It overrides plans.</td><td>polygon, altitude cap, window</td><td><div class="st"><span>inactive</span><span>active</span></div></td><td>Red-hatched map zone, <code>TFR Active</code> badge</td></tr>
+      <tr class="lane"><td colspan="5">Assets · what you fly with</td></tr>
+      <tr><td>Dock<small>launch · charge</small></td><td>A fixed home that launches, recovers and charges an aircraft with no one on site. It is what lets a drone get airborne in under 2 minutes.</td><td>name (HAW-Alpha-Dock), site, aircraft, weather</td><td><div class="st"><span>ready</span><span>launching</span><span>empty</span><span>offline</span></div></td><td><code>AssetItem</code>, dock map marker, <code>LaunchCard</code></td></tr>
+      <tr><td>Aircraft<small>X10 · X10D</small></td><td>The drone. It is the one entity that moves, so most of the screen is about where it is, how healthy it is and what it sees.</td><td>callsign, battery %, HAL/AGL, speed, heading, link (MH/FUS), nav (VIO/GPS), flight time left</td><td><div class="st"><span>ready</span><span>launching</span><span>flying</span><span>holding</span><span>returning</span><span>relieved</span></div></td><td><code>DroneMarker</code>, <code>FeedTile</code>, <code>HUD</code>, <code>AssetItem</code></td></tr>
+      <tr><td>Sensor / Payload<small>camera · attachment</small></td><td>What the aircraft can sense or do. Choosing color or thermal, zoom, speaker or light changes what you can learn and how you can intervene.</td><td>type, mode (color / thermal palette), zoom, recording</td><td><div class="st"><span>off</span><span>on</span><span>recording</span></div></td><td><code>CamStack</code>, <code>ThermalMenu</code>, <code>CaptureRail</code>, <code>AttachmentBar</code></td></tr>
+      <tr class="lane"><td colspan="5">People · who is accountable</td></tr>
+      <tr><td>Operator<small>pilot · responder</small></td><td>The person accountable. A pilot flies or supervises an aircraft. A responder claims an incident. Rank and name appear because accountability is personal.</td><td>name, rank, role, assigned aircraft</td><td><div class="st"><span>available</span><span>piloting</span><span>responding</span></div></td><td>Initials avatar, "Claimed By" row, feed header pilot name</td></tr>
+      <tr class="lane"><td colspan="5">Tasking · what you were told to do</td></tr>
+      <tr><td>Work order<small>tasking ref</small></td><td>The formal request that authorizes a mission, in the vocabulary the unit already uses.</td><td>ID (WO 04B-11A), requester, sector</td><td><div class="st"><span>open</span><span>scheduled</span><span>done</span></div></td><td><code>MissionItem</code> title prefix</td></tr>
+      <tr><td>Mission<small>patrol · response · overwatch · relief</small></td><td>A unit of planned work for an aircraft. A patrol is recurring and proactive. A response is triggered by an incident. Overwatch holds on a subject. A relief swaps aircraft without losing coverage.</td><td>type, aircraft, route, cadence ("Every 30 mins"), start time</td><td><div class="st"><span>scheduled</span><span>upcoming</span><span>active</span><span>paused</span><span>needs attention</span><span>done</span></div></td><td><code>PatrolCard</code>, <code>OperationItem</code>, <code>MissionItem</code></td></tr>
+      <tr><td>Route<small>path</small></td><td>The path a mission flies. Its shape is how operators recognize a mission at a glance.</td><td>polyline, waypoints[], altitude</td><td><div class="st"><span>planned</span><span>in progress</span></div></td><td>Map polyline (blue flown, white ahead), schedule thumbnail</td></tr>
+      <tr><td>Waypoint<small>stop</small></td><td>An ordered checkpoint. "Next: East Building" tells you where the aircraft is headed.</td><td>index, position, action</td><td><div class="st"><span>pending</span><span>reached</span></div></td><td><code>RouteMarker</code>, card "Next:" line</td></tr>
+      <tr class="lane"><td colspan="5">Triggers · why it is happening now</td></tr>
+      <tr><td>Integration<small>source system</small></td><td>Another system Skydio listens to or talks to: intrusion detection, video management, CAD, counter-UAS, TAK. It tells you whether to trust a signal and where it came from.</td><td>vendor, type, direction (in / out)</td><td><div class="st"><span>connected</span><span>degraded</span></div></td><td>Source label ("IDS SYSTEM ALERT")</td></tr>
+      <tr><td>Sensor alert<small>event</small></td><td>A single signal from an integration, such as a gate opening or motion on a road. On its own it is evidence, not yet a decision.</td><td>sensor, type, time, position</td><td><div class="st"><span>new</span><span>grouped</span></div></td><td><code>IncidentCard</code> source row with elapsed time</td></tr>
+      <tr><td>Incident<small>case</small></td><td>One or more alerts treated as a single situation that needs a person. This is where accountability attaches.</td><td>ID, title, area, coordinates, claimed by, response status</td><td><div class="st"><span>new</span><span>claimed</span><span>responding</span><span>resolved</span></div></td><td><code>IncidentCard</code>, <code>IncidentDetail</code>, "!" map marker</td></tr>
+      <tr class="lane"><td colspan="5">Perception · what the aircraft sees</td></tr>
+      <tr><td>Stream<small>video</small></td><td>The live or recorded view from a sensor. It is the primary evidence, and it can be shared outside the operations center.</td><td>aircraft, sensor, live flag, share link + expiry</td><td><div class="st"><span>live</span><span>recording</span><span>shared</span><span>ended</span></div></td><td><code>FeedTile</code>, <code>LiveTag</code>, <code>StreamShare</code></td></tr>
+      <tr><td>Detection<small>AI</small></td><td>Something the onboard AI found, such as a person, vehicle or animal. It is cheap and frequent, so the UI counts detections more than it announces them.</td><td>class, confidence, box, time</td><td><div class="st"><span>seen</span><span>dismissed</span><span>promoted</span></div></td><td><code>Reticle</code>, class tag, patrol card counts</td></tr>
+      <tr><td>Subject<small>track</small></td><td>A detection a person decided matters. It gets followed, labeled and handed off between aircraft.</td><td>class, affiliation, track mode (track / follow), owner aircraft</td><td><div class="st"><span>tracking</span><span>lost</span><span>handed off</span></div></td><td><code>BoundingBox</code>, Shadow flyout, amber focus</td></tr>
+      <tr><td>Marker (CoT)<small>shared point</small></td><td>A point you share with your whole force over TAK. It becomes part of everyone's common picture.</td><td>affiliation (hostile / friend / unknown / neutral), MGRS, author</td><td><div class="st"><span>local</span><span>published</span><span>stale</span></div></td><td><code>CoTMarker</code>, <code>GridReadout</code></td></tr>
+    </tbody>
+  </table></div>
+
+  <h3 class="sub">State machines</h3>
+  <div class="machines">
+    <div class="machine"><b>Aircraft</b><div class="flow"><span>ready</span><em>→</em><span class="b">launching</span><em>→</em><span class="b">flying</span><em>→</em><span class="a">relieved</span><em>→</em><span>returning</span><em>→</em><span>ready</span></div><p>Any flying state can jump to <span style="color:#ffc9cb">paused / holding</span> through the red stop control (P02). Relief happens before battery reserve runs out, so the subject stays covered.</p></div>
+    <div class="machine"><b>Mission</b><div class="flow"><span>scheduled</span><em>→</em><span>upcoming</span><em>→</em><span class="g">active</span><em>→</em><span>done</span></div><p><span style="color:#ffc9cb">needs attention</span> is an overlay state, not a step. An active airspace limit (TFR) or a failed checkpoint lifts the mission to the top of the list with a red stripe.</p></div>
+    <div class="machine"><b>Incident</b><div class="flow"><span class="r">new</span><em>→</em><span class="a">claimed</span><em>→</em><span class="a">responding</span><em>→</em><span class="g">resolved</span></div><p>New incidents dispatch a response mission from the nearest ready dock. They cannot be resolved without an owner (P10).</p></div>
+    <div class="machine"><b>Perception</b><div class="flow"><span class="g">detection</span><em>→</em><span class="a">subject</span><em>→</em><span>marker</span><em>→</em><span>published</span></div><p>Each step needs more human judgment and reaches more people: from the AI, to the operator, to the unit, to the whole force on TAK.</p></div>
+  </div>
+
+  <h3 class="sub">Relationships, read as sentences</h3>
+  <div class="rels">
+    <div class="rel"><div class="t"><b>Site</b><i>hosts</i><b>Dock</b></div><div class="m">Docks are fixed, so a site's coverage is set by where its docks are.</div></div>
+    <div class="rel"><div class="t"><b>Dock</b><i>houses</i><b>Aircraft</b></div><div class="m">Lists name the dock first and the airframe second.</div></div>
+    <div class="rel"><div class="t"><b>Mission</b><i>assigned to</i><b>Aircraft</b></div><div class="m">One active mission per aircraft. Relief reassigns the mission, not the subject.</div></div>
+    <div class="rel"><div class="t"><b>Operator</b><i>pilots</i><b>Aircraft</b></div><div class="m">One operator can supervise many aircraft, which is why the multi-feed grid exists.</div></div>
+    <div class="rel"><div class="t"><b>Integration</b><i>emits</i><b>Sensor alert</b><i>opens</i><b>Incident</b></div><div class="m">Many alerts can fold into one incident.</div></div>
+    <div class="rel"><div class="t"><b>Incident</b><i>dispatches</i><b>Mission (response)</b></div><div class="m">This is the main automation in base and border security.</div></div>
+    <div class="rel"><div class="t"><b>Operator</b><i>claims</i><b>Incident</b></div><div class="m">Claiming moves accountability from the system to a named person.</div></div>
+    <div class="rel"><div class="t"><b>Sensor</b><i>produces</i><b>Stream</b> and <b>Detection</b></div><div class="m">Detections are tied to a sensor mode. A thermal detection reads differently from a color one.</div></div>
+    <div class="rel"><div class="t"><b>Subject</b><i>shared as</i><b>Marker</b><i>publishes to</i><b>TAK</b></div><div class="m">This is the edge where the product switches to the TAK dialect (P07).</div></div>
+    <div class="rel"><div class="t"><b>Airspace limit</b><i>constrains</i><b>Sector</b> and <b>Mission</b></div><div class="m">A constraint always wins over the plan, and the UI shows it as the mission's state.</div></div>
+  </div>
+</section>
+
+<!-- 12 GENERATION -->
+<section class="group" id="generation">
+  <div class="group-head"><h2><span class="code">12</span>Generation contract</h2>
+  <p>How a UI generator for Skydio can use the three layers together. The ontology says <em>what</em> is on screen, the component library says <em>how</em> each thing is drawn in each context, and the principles are the checks a generated screen has to pass. The same model ships as <a href="skydio-ontology.json">skydio-ontology.json</a> next to this page. The components live in one shared library, <a href="kit.html">Skydio UI Kit</a>, and run as a live application in <a href="live.html">Skydio Live Ops</a>.</p></div>
+  <div class="gen-grid">
+    <div><h3>1 · Resolve a prompt into entities and context</h3><p>Every request becomes a set of entity instances, a surface (desktop or controller), a context (list, map, feed, TAK), and an operator task.</p>
+<pre class="code"><b>prompt</b>  "Gate sensor fired at night, show me the response"
+<b>surface</b> desktop
+<b>task</b>    respond
+<b>entities</b>
+  Incident    { state: "new", source: "IDS", area: "East Sector" }
+  SensorAlert { sensor: "South entrance gate", age_s: 30 }
+  Dock        { name: "HAW-Alpha-Dock", state: "ready" }
+  Aircraft    { callsign: "X10D-a8b0", state: "launching" }
+  Stream      { sensor: "thermal", live: true }
+  Detection   { class: "person" }</pre></div>
+    <div><h3>2 · Map each entity × context to a component</h3><p>The ontology's <code>render</code> table picks the component. The layout principle (P04) picks the pane.</p>
+<pre class="code"><b>list</b>  Incident(new)        → IncidentCard  + SensorAlert row
+<b>list</b>  Dock+Aircraft        → LaunchCard    ("Launching", blue CTA)
+<b>map</b>   Incident             → EventMarker   ("!", red diamond)
+<b>map</b>   Aircraft(launching)  → DroneMarker   (focus: amber)
+<b>feed</b>  Stream(thermal,live) → FeedTile      + HUD.compact + LiveTag
+<b>feed</b>  Detection(person)    → Reticle       (mint brackets)
+<b>bar</b>   Aircraft[]           → FleetActions  (Pause · Descend · Return)</pre></div>
+    <div><h3>3 · Lint the result against the principles</h3><p>Hard rules fail the generation. Soft rules produce warnings a designer reviews.</p>
+<pre class="code"><b>P02</b> aircraft container has filled-red stop ............ pass
+<b>P03</b> X10D-a8b0 focus applied in list, map, feed ......... pass
+<b>P05</b> every card leads with state ......................... pass
+<b>P06</b> "481" shown without unit in readout ................ <span style="color:#ff9a9d">FAIL</span>
+<b>P10</b> Incident has source, age, owner, close ............ <span style="color:#ffd27a">WARN owner = unclaimed</span>
+<b>P12</b> badge radius 2px, no card shadows ................... pass</pre></div>
+    <div><h3>4 · What the generator should never invent</h3><p>These are the places where generated UI is most likely to go wrong for this domain.</p>
+<pre class="code">- new signal colors, or a brand accent in product chrome
+- restyled MIL-STD-2525 symbols
+- a flying aircraft with no stop control in view
+- telemetry without units, or coordinates without a format
+- an incident with no owner and no way to close it
+- controller tools placed in the video center
+- names for the same function that differ between surfaces</pre></div>
+  </div>
+  <p class="disclaimer">Built from public marketing screenshots on skydio.com. Colors, sizes and type are approximations. Component names, the ontology and the principles are an outside reading of the product, not Skydio's internal model. People, callsigns and IDs are copied from Skydio's own sample data.</p>
+</section>
+
+</div>
+
+</html>

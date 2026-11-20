@@ -1,0 +1,219 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<style>body{margin:0}[hidden]{display:none!important}img{max-width:100%}</style>
+<title>Skydio Screen Generator</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&family=Space+Grotesk:wght@500;600&display=swap">
+<link rel="stylesheet" href="kit/skydio-ui.css">
+<style>
+/* Layout: prompt bar → generated screen (components from kit/skydio-ui.css) (scaled frame) → three readouts (principle checks, scene spec, entity trace).
+   Single dark look on purpose: the product being generated is dark-only. */
+:root{
+  color-scheme:dark;
+  --page:#0b0c0d; --ink:#eceef0; --ink-2:#a7acb2; --ink-3:#6f757c; --rule:#24272b; --panel:#111315;
+}
+*{box-sizing:border-box}
+body{background:var(--page);color:var(--ink);font-family:var(--f-ui);font-size:14px;line-height:1.5;
+  padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));padding-block:0 56px}
+.wrap{max-width:1320px;margin:0 auto}
+:focus-visible{outline:2px solid var(--blue);outline-offset:2px}
+button{font:inherit;color:inherit;cursor:pointer}
+
+header.mast{padding-block:28px 18px;display:grid;gap:8px}
+.eyebrow{font-family:var(--f-mono);font-size:11px;letter-spacing:.12em;text-transform:uppercase;color:var(--ink-3)}
+h1{font-family:var(--f-display);font-weight:600;font-size:clamp(26px,3.6vw,38px);line-height:1.05;margin:0;letter-spacing:-.01em}
+.lede{margin:0;color:var(--ink-2);max-width:78ch}
+.lede a{color:var(--ink)}
+
+.composer{border:1px solid var(--rule);border-radius:6px;background:var(--panel);padding:14px;display:grid;gap:12px}
+.composer label.lbl{font-family:var(--f-mono);font-size:11px;letter-spacing:.1em;text-transform:uppercase;color:var(--ink-3)}
+textarea#prompt{width:100%;min-height:64px;resize:vertical;background:#0b0c0d;border:1px solid #2c3034;border-radius:4px;color:var(--ink);font:15px/1.45 var(--f-ui);padding:10px 12px}
+textarea#prompt:focus{outline:none;border-color:var(--blue)}
+.row{display:flex;flex-wrap:wrap;gap:10px;align-items:center}
+.seg{display:inline-flex;border:1px solid #2c3034;border-radius:4px;overflow:hidden}
+.seg button{background:none;border:0;padding:6px 12px;color:var(--ink-2);font-size:13px}
+.seg button[aria-pressed="true"]{background:#24282c;color:var(--ink)}
+.seg-l{font-size:12px;color:var(--ink-3);margin-right:2px}
+.go{background:var(--blue);border:0;border-radius:4px;padding:8px 18px;font-weight:600;color:#fff;margin-left:auto}
+.go:disabled{opacity:.5;cursor:default}
+.ghost{background:none;border:1px solid #2c3034;border-radius:4px;padding:7px 12px;color:var(--ink-2);font-size:13px}
+.presets{display:flex;flex-wrap:wrap;gap:6px}
+.presets button{background:#15181a;border:1px solid #262a2e;border-radius:4px;padding:5px 10px;color:var(--ink-2);font-size:12.5px;text-align:left}
+.presets button:hover{color:var(--ink);border-color:#3a3f44}
+.status{font-family:var(--f-mono);font-size:12px;color:var(--ink-3);display:flex;gap:14px;flex-wrap:wrap}
+.status b{color:var(--ink-2);font-weight:500}
+.status .err{color:#ff9a9d}
+label.chk{display:inline-flex;gap:6px;align-items:center;font-size:12.5px;color:var(--ink-2)}
+
+.stagebox{margin-top:16px;border:1px solid var(--rule);border-radius:6px;overflow:hidden;background:#000;position:relative}
+.stagebox .cap{display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap;padding:8px 12px;background:var(--panel);border-bottom:1px solid var(--rule);font-size:12.5px;color:var(--ink-2)}
+.stagebox .cap b{color:var(--ink);font-weight:600}
+#scaler{position:relative;overflow:hidden}
+#frame{position:absolute;left:0;top:0;transform-origin:0 0}
+
+.readouts{margin-top:16px;display:grid;gap:16px;grid-template-columns:minmax(0,1.05fr) minmax(0,1fr)}
+@media (max-width:900px){.readouts{grid-template-columns:minmax(0,1fr)}}
+.pane-r{border:1px solid var(--rule);border-radius:6px;background:var(--panel);min-width:0}
+.pane-r h2{margin:0;font-family:var(--f-display);font-size:17px;font-weight:600;padding:12px 14px;border-bottom:1px solid var(--rule);display:flex;justify-content:space-between;align-items:baseline;gap:10px}
+.pane-r h2 small{font-family:var(--f-mono);font-size:12px;color:var(--ink-3);font-weight:400}
+.checks{list-style:none;margin:0;padding:0}
+.checks li{border-bottom:1px solid var(--rule)}
+.checks li:last-child{border-bottom:0}
+.checks button{all:unset;box-sizing:border-box;width:100%;display:grid;grid-template-columns:44px 58px minmax(0,1fr);gap:10px;padding:10px 14px;cursor:pointer;align-items:start}
+.checks button:hover{background:#15181b}
+.checks button:focus-visible{outline:2px solid var(--blue);outline-offset:-2px}
+.checks .id{font-family:var(--f-mono);font-size:12px;color:var(--ink-3);padding-top:2px}
+.verdict{font-family:var(--f-mono);font-size:10.5px;font-weight:600;letter-spacing:.06em;text-align:center;padding:3px 0;border-radius:2px}
+.v-pass{background:#173d22;color:#a9e6b9}.v-fail{background:#5c1416;color:#ffc2c4}.v-warn{background:#3d2f06;color:#ffe08a}.v-na{background:#1d2023;color:var(--ink-3)}
+.checks .t{font-size:13.5px;color:var(--ink)}
+.checks .d{font-size:12.5px;color:var(--ink-2);margin-top:2px}
+.checks li.on button{background:#16191c}
+.tabs{display:flex;gap:4px;padding:8px 10px 0;border-bottom:1px solid var(--rule)}
+.tabs button{background:none;border:0;border-bottom:2px solid transparent;padding:6px 10px;color:var(--ink-2);font-size:13px}
+.tabs button[aria-selected="true"]{color:var(--ink);border-bottom-color:var(--blue)}
+pre.spec{margin:0;padding:12px 14px;max-height:520px;overflow:auto;font:12px/1.55 var(--f-mono);color:var(--ink-2);white-space:pre}
+.notes{margin:0;padding:10px 14px;list-style:none;display:grid;gap:4px;font-size:12.5px;color:#ffe08a;border-bottom:1px solid var(--rule)}
+.notes:empty{display:none}
+.trace-wrap{max-height:560px;overflow:auto}
+table.trace{border-collapse:collapse;width:100%;font-size:12.5px}
+.trace th{text-align:left;font:500 10.5px var(--f-mono);letter-spacing:.08em;text-transform:uppercase;color:var(--ink-3);padding:8px 12px;border-bottom:1px solid var(--rule);position:sticky;top:0;background:var(--panel)}
+.trace td{padding:7px 12px;border-bottom:1px solid var(--rule);color:var(--ink-2);vertical-align:top}
+.trace td:first-child{color:var(--ink);font-weight:600;white-space:nowrap}
+.trace code{font:11.5px var(--f-mono);background:#1a1c1f;color:var(--ink);padding:1px 5px;border-radius:3px;margin:0 3px 3px 0;display:inline-block}
+.foot{margin-top:28px;color:var(--ink-3);font-size:12px;max-width:90ch}
+
+</style>
+
+<div class="wrap">
+<header class="mast">
+  <div class="eyebrow">Prototype · prompt → ontology → kit components → principle checks</div>
+  <h1>Skydio Screen Generator</h1>
+  <p class="lede">Describe a moment in a drone operation. The generator picks out the entities with the <a href="inventory.html">Skydio Defense UI Inventory</a> ontology, lays them out with components from the <a href="kit.html">Skydio UI Kit</a>, then checks the rendered screen against the 12 design principles. Click any check to highlight the elements it found. For a running version, open <a href="live.html">Skydio Live Ops</a>.</p>
+</header>
+
+<section class="composer" aria-label="Prompt">
+  <label class="lbl" for="prompt">Describe the screen</label>
+  <textarea id="prompt" spellcheck="false"></textarea>
+  <div class="presets" id="presets" aria-label="Example prompts"></div>
+  <div class="row">
+    <span class="seg-l">Surface</span>
+    <span class="seg" id="surfaceSeg" role="group" aria-label="Surface">
+      <button type="button" data-v="auto" aria-pressed="true">Auto</button><button type="button" data-v="desktop" aria-pressed="false">Desktop</button><button type="button" data-v="controller" aria-pressed="false">Controller</button>
+    </span>
+    <span class="seg-l" style="margin-left:8px">Map</span>
+    <span class="seg" id="mapSeg" role="group" aria-label="Map type">
+      <button type="button" data-v="auto" aria-pressed="true">Auto</button><button type="button" data-v="satellite" aria-pressed="false">Satellite</button><button type="button" data-v="topo" aria-pressed="false">Topo</button><button type="button" data-v="dark" aria-pressed="false">Dark</button><button type="button" data-v="street" aria-pressed="false">Street</button>
+    </span>
+    <span class="seg-l" style="margin-left:8px">Resolver</span>
+    <span class="seg" id="resolverSeg" role="group" aria-label="Resolver">
+      <button type="button" data-v="claude" aria-pressed="false" id="resClaude">Claude</button><button type="button" data-v="local" aria-pressed="true">Built-in parser</button>
+    </span>
+    <label class="chk"><input type="checkbox" id="inject"> Inject rule violations</label>
+    <button type="button" class="ghost" id="stopBtn" hidden>Stop</button>
+    <button type="button" class="go" id="go">Generate</button>
+  </div>
+  <div class="status" id="status" aria-live="polite"></div>
+</section>
+
+<div class="stagebox">
+  <div class="cap"><span id="capL"><b>—</b></span><span id="capR"></span></div>
+  <div id="scaler"><div id="frame" class="sky"></div></div>
+</div>
+
+<div class="readouts">
+  <section class="pane-r" aria-label="Principle checks">
+    <h2>Principle checks <small id="score"></small></h2>
+    <ul class="checks" id="checks"></ul>
+  </section>
+  <section class="pane-r" aria-label="Spec and trace">
+    <div class="tabs" role="tablist">
+      <button role="tab" aria-selected="true" data-tab="spec" id="tab-spec">Scene spec</button>
+      <button role="tab" aria-selected="false" data-tab="trace" id="tab-trace">Entity → component trace</button>
+    </div>
+    <div data-panel="spec"><ul class="notes" id="notes"></ul><pre class="spec" id="spec"></pre></div>
+    <div data-panel="trace" hidden><div class="trace-wrap"><table class="trace"><thead><tr><th>Entity</th><th>State</th><th>Drawn as</th></tr></thead><tbody id="trace"></tbody></table></div></div>
+  </section>
+</div>
+
+<p class="foot">Prototype built from an outside reading of Skydio's public marketing screenshots. Not affiliated with or endorsed by Skydio. Every site, callsign and person in generated screens is fictional. Map and video areas are drawn placeholders, not imagery.</p>
+</div>
+
+<script src="kit/skydio-ui.js"></script>
+<script src="kit/skydio-screens.js"></script>
+<script>
+"use strict";
+/* Screen generator on the Skydio UI Kit.
+   The kit supplies the ontology, scenario resolver + normalizer, components, basemaps and linter.
+   This page only adds layout geometry for a still screen, the spec/trace readouts and the controls. */
+const K = SkydioUI; K.mount();
+const { esc, rng, hashStr, fmtAge } = K;
+const $ = s => document.querySelector(s);
+const PRESETS = K.scenario.PRESETS;
+const { geo, renderDesktop, renderController, trace, stillFrame } = SkydioScreens;
+/* ---------- app ---------- */
+const state = { surface:"auto", basemap:"auto", resolver:"local", spec:null, notes:[], results:[], via:"" };
+let sample = null, ctl = null;
+function setSeg(id, v){ document.querySelectorAll(`#${id} button`).forEach(b => b.setAttribute("aria-pressed", String(b.dataset.v === v))); }
+function status(html){ $("#status").innerHTML = html; }
+function fit(){ const sc = $("#scaler"), fr = $("#frame"); const H = state.spec?.surface === "controller" ? 720 : 760; fr.style.width = "1280px"; fr.style.height = H + "px"; const s = Math.min(1, sc.clientWidth / 1280); fr.style.transform = `scale(${s})`; sc.style.height = (H * s) + "px"; fr.__scale = s; }
+function render(){
+  const { spec } = state, fr = $("#frame"), inject = $("#inject").checked;
+  if (state.basemap !== "auto") spec.basemap = state.basemap;
+  fit(); fr.innerHTML = spec.surface === "controller" ? renderController(spec, inject) : renderDesktop(spec, inject);
+  $("#capL").innerHTML = `<b>${esc(spec.title)}</b> · ${spec.surface === "controller" ? "Handheld controller" : "Desktop command"} · task: ${spec.task} · map: ${K.BASEMAP_LABEL[spec.basemap]}`;
+  $("#capR").textContent = `${spec.aircraft.length} aircraft · ${spec.missions.length} missions · ${spec.incidents.length} incidents · ${spec.subjects.length} subjects`;
+  requestAnimationFrame(() => { fit(); state.results = K.lint(fr, { surface:spec.surface, focus:spec.focus, aircraft:spec.aircraft, scale:fr.__scale }); showChecks(); showTrace(); });
+  $("#spec").textContent = JSON.stringify(spec, null, 2);
+  $("#notes").innerHTML = state.notes.map(n => `<li>Normalized: ${esc(n)}</li>`).join("");
+}
+function showChecks(){
+  const r = state.results, pass = r.filter(x => x.verdict === "pass").length, applic = r.filter(x => x.verdict !== "na").length, fail = r.filter(x => x.verdict === "fail").length, warn = r.filter(x => x.verdict === "warn").length;
+  $("#score").textContent = `${pass}/${applic} pass${fail ? ` · ${fail} fail` : ""}${warn ? ` · ${warn} warn` : ""}`;
+  $("#checks").innerHTML = r.map((x, i) => { const name = K.PRINCIPLES.find(p => p[0] === x.id)[1];
+    return `<li data-i="${i}"><button type="button" aria-label="${x.id} ${x.verdict}: ${esc(name)}"><span class="id">${x.id}</span><span class="verdict v-${x.verdict}">${x.verdict.toUpperCase()}</span><span><div class="t">${esc(name)}</div><div class="d">${esc(x.detail)}${x.offenders.length ? ` <span style="color:var(--ink-3)">· ${x.offenders.length} highlighted on click</span>` : ""}</div></span></button></li>`; }).join("");
+}
+function showTrace(){ $("#trace").innerHTML = trace($("#frame")).map(o => `<tr><td>${esc(o.type)}<div class="mono" style="font-weight:400;font-size:11px;color:var(--ink-3)">${esc(o.id)}</div></td><td>${[...o.st].map(esc).join(", ") || "—"}</td><td>${[...o.comps].map(c => `<code>${esc(c)}</code>`).join("")}</td></tr>`).join(""); }
+$("#checks").addEventListener("click", e => {
+  const li = e.target.closest("li"); if (!li) return; const r = state.results[+li.dataset.i];
+  document.querySelectorAll(".lint-hit").forEach(x => x.classList.remove("lint-hit"));
+  const was = li.classList.contains("on"); document.querySelectorAll("#checks li.on").forEach(x => x.classList.remove("on"));
+  if (was) return; li.classList.add("on"); r.offenders.forEach(el => el.classList.add("lint-hit"));
+  if (r.offenders.length) $(".stagebox").scrollIntoView({ behavior:matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth", block:"nearest" });
+});
+function runLocal(prompt){ const n = stillFrame(K.scenario.normalize(K.scenario.localResolve(prompt, state.surface))); Object.assign(state, n, { via:"Built-in parser" }); render(); }
+async function generate(){
+  const prompt = $("#prompt").value.trim(); if (!prompt){ status(`<span class="err">Describe a screen first.</span>`); return; }
+  try { localStorage.setItem("ssg.prompt", prompt); } catch {}
+  if (state.resolver === "claude" && sample){
+    ctl = new AbortController(); $("#go").disabled = true; $("#stopBtn").hidden = false; status("<span>Resolving with Claude…</span>");
+    try {
+      const raw = await sample.json(K.scenario.claudePrompt(prompt, state.surface), { modelTier:"quick", signal:ctl.signal });
+      const n = stillFrame(K.scenario.normalize(raw)); if (state.surface !== "auto") n.spec.surface = state.surface;
+      Object.assign(state, n, { via:"Claude" }); render();
+      status(`<span>Resolver: <b>Claude</b></span><span>${n.notes.length} normalization fix${n.notes.length === 1 ? "" : "es"}</span>`);
+    } catch (e) {
+      const msg = { cancelled:"Stopped.", not_granted:"Claude isn't allowed for this page, so the built-in parser is used.", sampling_disabled:"Claude isn't available on this account, so the built-in parser is used.", rate_limited:"Too many requests just now. Try again in a minute.", invalid_json:"Claude's reply wasn't valid JSON. Try again or rephrase.", refused:"Claude declined this request. Try rephrasing it.", session_expired:"Sign in again to use Claude." }[e?.code] || "Claude couldn't answer. Try again.";
+      if (["not_granted","sampling_disabled","not_declared","capability_disabled","capability_removed"].includes(e?.code)){ sample = null; $("#resClaude").disabled = true; state.resolver = "local"; setSeg("resolverSeg", "local"); runLocal(prompt); }
+      status(`<span class="err">${esc(msg)}</span>${state.via === "Built-in parser" ? "<span>Resolver: <b>Built-in parser</b></span>" : ""}`);
+    } finally { $("#go").disabled = false; $("#stopBtn").hidden = true; }
+  } else { runLocal(prompt); status(`<span>Resolver: <b>Built-in parser</b></span><span>${state.notes.length} normalization fix${state.notes.length === 1 ? "" : "es"}</span>${sample ? "" : "<span>Claude resolver unavailable in this view</span>"}`); }
+}
+$("#go").addEventListener("click", generate);
+$("#stopBtn").addEventListener("click", () => ctl?.abort());
+$("#prompt").addEventListener("keydown", e => { if ((e.metaKey || e.ctrlKey) && e.key === "Enter") generate(); });
+$("#inject").addEventListener("change", () => { if (state.spec) render(); });
+$("#surfaceSeg").addEventListener("click", e => { const b = e.target.closest("button"); if (!b) return; state.surface = b.dataset.v; setSeg("surfaceSeg", state.surface); if (state.spec && state.via === "Built-in parser") runLocal($("#prompt").value); else if (state.spec && state.surface !== "auto"){ state.spec.surface = state.surface; render(); } });
+$("#mapSeg").addEventListener("click", e => { const b = e.target.closest("button"); if (!b) return; state.basemap = b.dataset.v; setSeg("mapSeg", state.basemap); if (!state.spec) return; if (state.basemap === "auto" && state.via === "Built-in parser") runLocal($("#prompt").value); else render(); });
+$("#frame").addEventListener("click", e => { const b = e.target.closest("[data-basemap]"); if (!b || !state.spec) return; state.basemap = b.dataset.basemap; setSeg("mapSeg", state.basemap); render(); });
+$("#resolverSeg").addEventListener("click", e => { const b = e.target.closest("button"); if (!b || b.disabled) return; state.resolver = b.dataset.v; setSeg("resolverSeg", state.resolver); });
+document.querySelectorAll(".tabs button").forEach(b => b.addEventListener("click", () => { document.querySelectorAll(".tabs button").forEach(x => x.setAttribute("aria-selected", String(x === b))); document.querySelectorAll("[data-panel]").forEach(p => p.hidden = p.dataset.panel !== b.dataset.tab); }));
+$("#presets").innerHTML = PRESETS.map((p, i) => `<button type="button" data-i="${i}">${esc(p[0])}</button>`).join("");
+$("#presets").addEventListener("click", e => { const b = e.target.closest("button"); if (!b) return; $("#prompt").value = PRESETS[+b.dataset.i][1]; generate(); });
+new ResizeObserver(() => fit()).observe($("#scaler"));
+let first = PRESETS[0][1]; try { first = localStorage.getItem("ssg.prompt") || first; } catch {}
+$("#prompt").value = first; runLocal(first); status("<span>Resolver: <b>Built-in parser</b></span><span>Sample screen; press Generate or pick an example</span>");
+(async () => { try { sample = window.claude ? await window.claude.use("sample") : null; } catch { sample = null; }
+  if (sample){ state.resolver = "claude"; setSeg("resolverSeg", "claude"); } else { $("#resClaude").disabled = true; $("#resClaude").title = "Claude isn't available in this view"; } })();
+</script>
+
+</html>

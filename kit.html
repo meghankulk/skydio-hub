@@ -1,0 +1,198 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<style>body{margin:0}[hidden]{display:none!important}img{max-width:100%}</style>
+<title>Skydio UI Kit</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&family=Space+Grotesk:wght@500;600&display=swap">
+<link rel="stylesheet" href="kit/skydio-ui.css">
+<style>
+/* Layout: masthead → install → tokens → component groups (live specimen + the exact kit call) → data-attribute contract.
+   Every specimen is rendered at load by calling SkydioUI, so this page can't drift from the kit. Dark-only on purpose. */
+:root{ color-scheme:dark; --page:#0b0c0d; --ink:#eceef0; --ink-2:#a7acb2; --ink-3:#6f757c; --rule:#24272b; --panel:#0e0f10; }
+*{box-sizing:border-box}
+body{background:var(--page);color:var(--ink);font-family:var(--f-ui);font-size:14px;line-height:1.5;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));padding-block:0 64px}
+.wrap{max-width:1240px;margin:0 auto}
+a{color:var(--ink)}
+:focus-visible{outline:2px solid var(--blue);outline-offset:2px}
+header.mast{padding-block:36px 22px;border-bottom:1px solid var(--rule);display:grid;gap:12px}
+.eyebrow{font-family:var(--f-mono);font-size:11px;letter-spacing:.12em;text-transform:uppercase;color:var(--ink-3)}
+h1{font-family:var(--f-display);font-weight:600;font-size:clamp(30px,4.2vw,46px);line-height:1.05;margin:0;letter-spacing:-.01em}
+h1 small{font-family:var(--f-mono);font-size:14px;color:var(--ink-3);font-weight:400;margin-left:10px;vertical-align:middle}
+.lede{max-width:72ch;color:var(--ink-2);margin:0}
+.meta{display:flex;flex-wrap:wrap;gap:8px 18px;font-family:var(--f-mono);font-size:12px;color:var(--ink-3)}
+.meta b{color:var(--ink-2);font-weight:500}
+nav.toc{position:sticky;top:env(safe-area-inset-top,0px);z-index:5;background:color-mix(in srgb,var(--page) 92%,transparent);backdrop-filter:blur(6px);border-bottom:1px solid var(--rule);padding-block:10px}
+body::before{content:"";position:fixed;inset:0 0 auto;height:env(safe-area-inset-top,0px);z-index:10;background:var(--page)}
+nav.toc ul{list-style:none;margin:0;padding:0;display:flex;gap:6px;overflow-x:auto;scrollbar-width:none}
+nav.toc a{display:block;white-space:nowrap;text-decoration:none;font-size:12.5px;padding:5px 10px;border:1px solid var(--rule);border-radius:4px;color:var(--ink-2)}
+nav.toc a:hover{color:var(--ink);border-color:var(--ink-3)}
+section.group{padding-block:38px 6px;border-bottom:1px solid var(--rule);scroll-margin-top:56px}
+h2{font-family:var(--f-display);font-weight:600;font-size:24px;margin:0 0 6px}
+.gp{margin:0 0 18px;color:var(--ink-2);max-width:74ch}
+.grid{display:grid;gap:14px;grid-template-columns:repeat(auto-fill,minmax(min(100%,380px),1fr))}
+.grid.wide{grid-template-columns:repeat(auto-fill,minmax(min(100%,600px),1fr))}
+.comp{border:1px solid var(--rule);border-radius:6px;background:var(--panel);display:flex;flex-direction:column;min-width:0}
+.stage{border-bottom:1px solid var(--rule);border-radius:6px 6px 0 0;overflow:hidden;min-width:0}
+.stage .sky{padding:18px;display:flex;flex-wrap:wrap;gap:12px;align-items:center;justify-content:center;min-height:120px}
+.stage .sky.terrain{background:linear-gradient(140deg,#6b6448,#565239 50%,#3f4632)}
+.stage .sky.video{background:radial-gradient(circle at 60% 50%,#8a8a8a 0,#4a4a4a 45%,#222 100%)}
+.stage .sky.box{display:block;padding:0;position:relative}
+.solo .strip,.solo .c-rail,.solo .fly,.solo .readout,.solo .mgrs,.solo .relief,.solo .pip,.solo .isrt,.solo .ctoast,.solo .fleet,.solo .msearch,.solo .mtools,.solo .bmap{position:relative!important;inset:auto!important;left:auto!important;right:auto!important;top:auto!important;bottom:auto!important;transform:none!important}
+.solo .c-rail{flex-direction:column}
+.solo .bmap{grid-template-columns:repeat(4,auto)}
+.info{padding:12px 14px 14px;display:grid;gap:8px;min-width:0}
+.info h3{margin:0;font-size:15px;font-weight:600;display:flex;gap:8px;align-items:baseline;flex-wrap:wrap}
+.info h3 code{font-family:var(--f-mono);font-size:11px;color:var(--ink-3);font-weight:400}
+.info p{margin:0;color:var(--ink-2);font-size:13px}
+pre.call{margin:0;background:#08090a;border:1px solid #1d2023;border-radius:4px;padding:8px 10px;font:11.5px/1.5 var(--f-mono);color:var(--ink-2);white-space:pre-wrap;word-break:break-word;max-height:120px;overflow:auto}
+pre.call b{color:#9cc0ff;font-weight:500}
+.pr{display:flex;flex-wrap:wrap;gap:4px}
+.pr span{font-family:var(--f-mono);font-size:10.5px;border:1px solid #2c3034;border-radius:2px;padding:0 5px;color:var(--ink-3)}
+.sw-grid{display:grid;gap:8px;grid-template-columns:repeat(auto-fill,minmax(130px,1fr))}
+.sw{border:1px solid var(--rule);border-radius:4px;overflow:hidden;background:var(--panel)}
+.sw i{display:block;height:44px}
+.sw div{padding:6px 8px;font-size:11.5px;line-height:1.35}.sw div b{display:block;font-family:var(--f-mono);font-weight:500;color:var(--ink)}.sw div span{font-family:var(--f-mono);color:var(--ink-3);font-size:10.5px}
+pre.code{margin:0;background:#08090a;border:1px solid var(--rule);border-radius:6px;padding:14px;overflow-x:auto;font:12.5px/1.6 var(--f-mono);color:var(--ink-2)}
+table.contract{border-collapse:collapse;width:100%;font-size:13px}
+.tbl{overflow-x:auto;border:1px solid var(--rule);border-radius:6px}
+.contract th{text-align:left;font:500 10.5px var(--f-mono);letter-spacing:.08em;text-transform:uppercase;color:var(--ink-3);padding:9px 12px;border-bottom:1px solid var(--rule)}
+.contract td{padding:9px 12px;border-bottom:1px solid var(--rule);color:var(--ink-2);vertical-align:top}
+.contract td:first-child{white-space:nowrap}.contract code{font:12px var(--f-mono);color:var(--ink)}
+.two{display:grid;gap:16px;grid-template-columns:minmax(0,1fr) minmax(0,1fr)}
+@media (max-width:860px){.two{grid-template-columns:minmax(0,1fr)}}
+.foot{margin-top:28px;color:var(--ink-3);font-size:12px;max-width:90ch}
+</style>
+
+<div class="wrap">
+<header class="mast">
+  <div class="eyebrow">Shared component library · single source</div>
+  <h1>Skydio UI Kit <small id="ver"></small></h1>
+  <p class="lede">The components, ontology, map types and principle linter behind the Skydio pages, packaged as one stylesheet and one script. Every specimen below is drawn at load by calling the kit with the props shown, so this page always matches the kit.</p>
+  <div class="meta"><span><b id="nComp">0</b> components</span><span><b>12</b> principles, checked by <code>SkydioUI.lint()</code></span><span>Used by <a href="live.html" id="liveLink">Skydio Live Ops</a> and the <a href="inventory.html">Inventory</a></span></div>
+</header>
+<nav class="toc" aria-label="Sections"><ul id="toc"></ul></nav>
+
+<section class="group" id="install">
+  <h2>Use it</h2>
+  <p class="gp">Load the two files, mount the icon sprite, and render inside an element with class <code>sky</code>. Components are pure functions: props in, an HTML string out.</p>
+  <div class="two">
+<pre class="code">&lt;link rel="stylesheet" href="kit/skydio-ui.css"&gt;
+&lt;script src="kit/skydio-ui.js"&gt;&lt;/script&gt;
+
+&lt;div class="sky" id="screen"&gt;&lt;/div&gt;
+&lt;script&gt;
+  const K = SkydioUI; K.mount();
+  screen.innerHTML = K.PatrolCard({ mission, aircraft });
+  const results = K.lint(screen, { surface: "desktop",
+    focus: "X10-A", aircraft });
+&lt;/script&gt;</pre>
+<pre class="code">Files in this kit
+  kit/skydio-ui.css     tokens + component styles (.sky scope)
+  kit/skydio-ui.js      SkydioUI: ontology, components,
+                        basemaps, scenario resolver, lint()
+  skydio-ontology.json  the same model as data
+
+Live apps also use
+  data-act / data-id    operator actions (click delegation)
+  updateBinds()         live telemetry text
+  updatePositions()     marker positions and headings</pre>
+  </div>
+</section>
+
+<section class="group" id="tokens"><h2>Tokens</h2><p class="gp">Defined once on <code>:root</code> in skydio-ui.css. Swatches read the live CSS values.</p><div class="sw-grid" id="swatches"></div></section>
+<div id="groups"></div>
+
+<section class="group" id="contract">
+  <h2>Data-attribute contract</h2>
+  <p class="gp">The attributes components emit. The linter and live apps read these, so a new component is checked by the same rules as soon as it emits them.</p>
+  <div class="tbl"><table class="contract"><thead><tr><th>Attribute</th><th>Meaning</th><th>Read by</th></tr></thead><tbody>
+    <tr><td><code>data-entity · data-type · data-comp · data-st</code></td><td>Which ontology entity, of which type, drawn by which component, in which state</td><td>Entity trace, P03</td></tr>
+    <tr><td><code>data-card · data-row="1|2|3"</code></td><td>An entity card and its three rows</td><td>P05, P11</td></tr>
+    <tr><td><code>data-state</code></td><td>The state badge</td><td>P05</td></tr>
+    <tr><td><code>data-telemetry</code></td><td>A measurement that must carry a unit</td><td>P06</td></tr>
+    <tr><td><code>data-aircraft-container · data-stop</code></td><td>A view of one aircraft and its safe-stop control</td><td>P02</td></tr>
+    <tr><td><code>data-overlay</code></td><td>Drawn over map or video imagery</td><td>P09</td></tr>
+    <tr><td><code>data-cot · data-dialect="tak"</code></td><td>A TAK affiliation symbol, TAK-voiced text</td><td>P07</td></tr>
+    <tr><td><code>data-touch</code></td><td>A handheld touch target</td><td>P04, P08</td></tr>
+    <tr><td><code>data-incident · data-f="source|age|owner|close"</code></td><td>An incident and its four required fields</td><td>P10</td></tr>
+    <tr><td><code>data-control</code></td><td>A control or badge (radius checked)</td><td>P12</td></tr>
+    <tr><td><code>data-pane="nav|list|map|feeds" · data-fleet</code></td><td>Desktop pane order, fleet commands</td><td>P04</td></tr>
+    <tr><td><code>data-imagery</code></td><td>Map or video stand-in, excluded from color checks</td><td>P01</td></tr>
+    <tr><td><code>data-act · data-id</code></td><td>An operator action</td><td>Live apps</td></tr>
+    <tr><td><code>data-bk/bf/bu · data-pk · data-rot · data-ring</code></td><td>Live telemetry, position, heading and battery-ring bindings</td><td>updateBinds(), updatePositions()</td></tr>
+  </tbody></table></div>
+</section>
+<p class="foot">Reverse-engineered from public Skydio marketing screenshots. Not affiliated with or endorsed by Skydio. Names, values and the ontology are an outside reading of the product.</p>
+</div>
+
+<script src="kit/skydio-ui.js"></script>
+<script>
+"use strict";
+const K = SkydioUI; K.mount();
+const esc = K.esc;
+document.getElementById("ver").textContent = "v" + K.version;
+
+/* tokens */
+const TOK = [["--s-0","app ground"],["--s-1","panel"],["--s-2","card"],["--s-3","control"],["--s-4","stroke / selected"],["--t-2","secondary text"],["--blue","own aircraft, go, selected"],["--red","stop, live, hostile"],["--green","active, ready"],["--reticle","AI lock"],["--amber","operator focus"],["--purple","point of interest"],["--tak-hostile","2525 hostile"],["--tak-friend","2525 friend"],["--tak-unknown","2525 unknown"],["--tak-neutral","2525 neutral"]];
+const cs = getComputedStyle(document.documentElement);
+document.getElementById("swatches").innerHTML = TOK.map(([v, m]) => `<div class="sw"><i style="background:var(${v})"></i><div><b>${v}</b><span>${cs.getPropertyValue(v).trim()} · ${m}</span></div></div>`).join("");
+
+/* sample data */
+const air = { id:"X10-A", dock:"North Dock", pilot:"SSG Dana Ruiz", state:"flying", battery:82, alt:180, speed:12, heading:45, sensor:"thermal" };
+const ready = { ...air, id:"X10-D", dock:"Reserve Dock", state:"ready", battery:100, alt:0, speed:0 };
+const mission = { id:"M-P1", name:"Motor Pool patrol", state:"active", sector:"Motor Pool", next:"WP 3", cadence:"Every 30 mins" };
+
+/* catalog: [group, name, args, note, principles, stage] — stage: "" | "terrain" | "video" | "box:WxH" | "solo" */
+const C = [
+  ["Atoms","badge",["flying"],"State badge. Every state in the ontology has a fixed treatment.",["P05","P12"],"",()=>K.ONTO.air.concat(["new","claimed","responding","resolved","active","upcoming","scheduled","paused","done"]).map(s=>K.badge(s)).join("")],
+  ["Atoms","Button",[{label:"Dispatch",variant:"blue",act:"dispatch",id:"INC-4471"}],"Neutral, blue (go) and red (stop only) variants. Red is reserved by P02.",["P02","P12"],"",()=>[K.Button({label:"Claim"}),K.Button({label:"Dispatch",variant:"blue"}),K.Button({label:"Pause",icon:"pause",variant:"red",fleetstop:true}),K.Button({label:"End",disabled:true})].join("")],
+  ["Atoms","LiveTag",[],"Marks a streaming feed.",["P02"]],
+  ["Atoms","Segmented",[[{label:"Track",on:true,act:"mode",id:"SUB-1|track"},{label:"Follow",act:"mode",id:"SUB-1|follow"}]],"Switches a flight behavior the aircraft will act on.",["P12"]],
+  ["Atoms","AffiliationPicker",["hostile",{act:"aff",id:"SUB-1"}],"MIL-STD-2525 affiliation choice for a subject. Shapes and fills are never restyled.",["P07"]],
+  ["Shell","TopBar",[{site:"Fort Calder",module:"Flight Deck",clock:"02:14:41 AM"}],"Breadcrumb and live clock.",["P04"],"box:100%x44"],
+  ["Shell","NavRail",[{badge:2}],"Compact side nav with an unclaimed-incident count.",["P04"],"box:52x260"],
+  ["Cards","IncidentCard",[{id:"INC-4471",title:"Intrusion alarm · Motor Pool",state:"new",source:"IDS",sensor:"South gate sensor",age:"30 sec",owner:null,actions:[{label:"Claim",act:"claim",id:"INC-4471"},{label:"Dispatch",variant:"blue",act:"dispatch",id:"INC-4471"},{label:"End",f:"close",disabled:true}]}],"Source, clock, owner and a close action are required.",["P05","P10","P11"]],
+  ["Cards","IncidentCard",[{id:"INC-4471",title:"Intrusion alarm · Motor Pool",state:"responding",source:"IDS",sensor:"South gate sensor",age:"2 min",owner:"SSG Dana Ruiz (you)",actions:[{label:"End response",icon:"check",act:"end",id:"INC-4471",f:"close"}]}],"Responding: owned, with one way to close it.",["P10","P11"]],
+  ["Cards","LaunchCard",[{aircraft:{...air,state:"launching"},focus:true,note:"Response · Motor Pool"}],"Shown while a dock launches.",["P03","P05"]],
+  ["Cards","PatrolCard",[{mission,aircraft:air,dets:[{cls:"person",count:1},{cls:"vehicle",count:2}]}],"Identity and state, where and next, who and health.",["P05","P11"]],
+  ["Cards","PatrolCard",[{mission:{...mission,attention:true,reason:"Low battery"},aircraft:{...air,battery:22},actions:[{label:"Relief",icon:"swap",act:"relief",id:"X10-A"}]}],"Needs-attention variant: red stripe and the reason.",["P02","P05"]],
+  ["Cards","MissionItem",[{mission:{id:"M-S1",name:"Vehicle lot patrol",state:"scheduled",sector:"Sector B",start:"03:30",workOrder:"WO 04B-11A"},aircraftLabel:"X10-B · South Dock",actions:[{label:"Launch",variant:"blue",act:"launch-mission",id:"M-S1"}]}],"Scheduled work with a route thumbnail.",["P05","P11"]],
+  ["Cards","AssetItem",[{aircraft:ready,actions:[{label:"Launch",variant:"blue",act:"launch",id:"X10-D"}]}],"A dock and its aircraft.",["P05","P11"]],
+  ["Map","DroneMarker",[{id:"X10-A",x:30,y:45,heading:45,state:"flying",alt:180,battery:82}],"Heading disc with a white ring. Amber when focused.",["P03","P09"],"terrain box:100%x150",()=>K.DroneMarker({id:"X10-A",x:30,y:45,heading:45,state:"flying",alt:180,battery:82})+K.DroneMarker({id:"X10-C",x:72,y:45,heading:300,state:"flying",alt:150,battery:64,focus:true})],
+  ["Map","Waypoint",[{n:3,x:50,y:50,done:true,entity:"M-P1-wp3"}],"Blue when reached, white when ahead.",["P09"],"terrain box:100%x110",()=>[1,2,3,4,5].map(n=>K.Waypoint({n,x:12+n*15,y:50,done:n<4,entity:"wp"+n})).join("")],
+  ["Map","EventMarker",[{id:"INC-4471",kind:"alert",x:50,y:50}],"Diamond event: alert, person, vehicle, animal, POI.",["P02","P09"],"terrain box:100%x110",()=>["alert","person","vehicle","animal","poi"].map((k,i)=>K.EventMarker({id:"E"+i,kind:k,x:14+i*18,y:50})).join("")],
+  ["Map","CoTMarker",[{id:"CoT-1",aff:"hostile",x:50,y:50}],"Shared over TAK in standard 2525 colors.",["P07","P09"],"terrain box:100%x110",()=>K.ONTO.aff.map((a,i)=>K.CoTMarker({id:"C"+i,aff:a,x:18+i*21,y:50})).join("")],
+  ["Map","FleetActions",[{paused:false}],"Fleet-wide commands, docked under the map.",["P02","P04"],"terrain solo"],
+  ["Map","BasemapSwitcher",["satellite"],"Satellite, topo, dark vector and street basemaps.",["P09"],"solo"],
+  ["Map","AlertToast",[{line1:"Intrusion alarm",line2:"Motor Pool · IDS · unclaimed",urgency:"action"}],"Red bar needs action, amber is information. tak:true switches to the TAK voice.",["P07"],"terrain",()=>K.AlertToast({line1:"Intrusion alarm",line2:"Motor Pool · IDS · unclaimed",urgency:"action"})+K.AlertToast({line1:"Subject published to TAK",line2:"PERSON · HOSTILE · MOTOR POOL",tak:true})],
+  ["Map","MapPane",[{basemap:"topo",seed:"Fort Calder",overlays:"…markers…",fleet:{}}],"The full map pane: basemap, overlays, search, tools, switcher and fleet bar.",["P04","P09"],"box:100%x380",()=>K.MapPane({basemap:"topo",seed:"Fort Calder",overlays:K.DroneMarker({id:"X10-A",x:40,y:40,heading:80,state:"flying",alt:180,battery:82,focus:true})+K.EventMarker({id:"INC",kind:"alert",x:60,y:60})+K.CoTMarker({id:"C",aff:"hostile",x:30,y:66}),fleet:{}}).replace('class="d-map"','class="d-map" style="position:absolute;inset:0"')],
+  ["Video","FeedTile",[{aircraft:air,focus:true,rthAct:"rth",holdAct:"hold",det:{cls:"person",x:34,y:60},sub:{id:"SUB-1",cls:"vehicle",x:64,y:52,aff:"hostile"},footer:"…subject controls…"}],"One aircraft's cockpit. Always carries a red return control when airborne.",["P02","P03","P06"],"box:100%x330",()=>`<div style="display:flex;height:100%;padding:8px">${K.FeedTile({aircraft:air,focus:true,rthAct:"rth",holdAct:"hold",det:{cls:"person",x:34,y:60},sub:{id:"SUB-1",cls:"vehicle",x:64,y:52,aff:"hostile"},footer:`<span class="lbl">SUB-1</span>${K.Segmented([{label:"Track",on:true},{label:"Follow"}])}${K.AffiliationPicker("hostile",{})}${K.Button({label:"Publish",variant:"blue"})}`})}</div>`],
+  ["Video","FeedTile",[{aircraft:ready}],"On the dock: no stop control, charging state.",["P02"],"box:100%x200",()=>`<div style="display:flex;height:100%;padding:8px">${K.FeedTile({aircraft:ready,footer:K.Button({label:"Launch patrol",variant:"blue"})})}</div>`],
+  ["Video","Reticle",[{cls:"person",x:50,y:55}],"Mint corner brackets: AI lock. Animals tagged amber.",["P09"],"video box:100%x130",()=>K.Reticle({cls:"person",x:30,y:55})+K.Reticle({cls:"animal",x:70,y:55})],
+  ["Video","BoundingBox",[{id:"SUB-1",cls:"vehicle",x:50,y:52,aff:"hostile"}],"Tracked subject, with its TAK marker pinned on top once published.",["P07"],"video box:100%x140"],
+  ["Controller","FlightStrip",[air,"14R MS 85231 81518"],"Battery ring, nav sources, HAL, speed, heading, frequency.",["P06","P08"],"video solo"],
+  ["Controller","ToolRail",["scan"],"Left-edge tools; active tool in blue with a mint bar.",["P04","P08"],"solo"],
+  ["Controller","CaptureRail",[{hold:{act:"hold",id:"X10-A",icon:"pause",label:"Hold"},stop:{act:"rth",id:"X10-A"}}],"Zoom, hold, return-to-home and shutter.",["P02","P08"],"solo"],
+  ["Controller","ShadowFlyout",[{subject:{id:"SUB-1",mode:"track",aff:"hostile",published:false},modeAct:"mode",affAct:"aff",publishAct:"publish",reliefAct:"relief",aircraftId:"X10-A"}],"Subject tracking, mode, TAK marker type, publish and relief.",["P07","P08"],"solo"],
+  ["Controller","IncidentToast",[{id:"INC-4471",title:"Intrusion alarm · Motor Pool",state:"new",source:"IDS",age:"30 sec",owner:null,actions:[{label:"Claim",act:"claim",id:"INC-4471"},{label:"Dispatch",variant:"blue",act:"dispatch",id:"INC-4471"},{label:"End",f:"close",disabled:true}]}],"The incident card, collapsed for the handheld.",["P08","P10"],"video solo"],
+  ["Controller","IsrToast",[{line1:"X10-D is en route",line2:"Arriving in ~2 min",urgency:"info"}],"TAK-voiced status message.",["P07"],"video solo"],
+  ["Controller","TargetReadout",[{key:"X10-A",range:"193 ft",mgrs:"14R MS 85298 81518"}],"Slant range and grid of what's under the crosshair.",["P06"],"video solo"],
+  ["Controller","GridReadout",[{mgrs:"11S MT 85676 81518"}],"MGRS in the TAK dialect.",["P07"],"video solo"],
+  ["Controller","ReliefBar",[{reliever:{...ready,id:"X10-D",state:"launching",alt:60}}],"The incoming aircraft during a handoff.",["P05"],"video solo"],
+  ["Controller","Minimap",[{basemap:"street",seed:"Fort Calder",markers:"…"}],"Inset map with live aircraft and TAK markers.",["P03","P09"],"solo",()=>K.Minimap({basemap:"street",seed:"Fort Calder",markers:K.DroneMarker({id:"X10-A",x:40,y:45,heading:30,small:true,focus:true})+K.CoTMarker({id:"C",aff:"hostile",x:66,y:36})})]
+];
+const groups = [...new Set(C.map(c => c[0]))];
+const GROUP_NOTE = { Atoms:"Badges, buttons and pickers every other component is built from.", Shell:"The desktop frame.", Cards:"List cards. All follow the three-row grammar.", Map:"Markers and map chrome. Positions are percentages of the map pane.", Video:"Feed tiles and what's drawn on video.", Controller:"Handheld pieces, sized for gloves and placed on the screen edges." };
+const short = v => { const s = JSON.stringify(v); return s.length > 220 ? s.slice(0, 217) + "…" : s; };
+document.getElementById("toc").innerHTML = [["install","Use it"],["tokens","Tokens"],...groups.map(g => [g.toLowerCase(), g]),["contract","Contract"]].map(([id, t]) => `<li><a href="#${id}">${t}</a></li>`).join("");
+document.getElementById("groups").innerHTML = groups.map(g => `<section class="group" id="${g.toLowerCase()}"><h2>${g}</h2><p class="gp">${GROUP_NOTE[g]}</p><div class="grid${g === "Video" || g === "Map" || g === "Controller" ? " wide" : ""}">${
+  C.filter(c => c[0] === g).map(([, name, args, note, pr, stage = "", custom]) => {
+    let html; try { html = custom ? custom() : K[name](...args); } catch (e) { html = `<span style="color:#ff9a9d">${esc(e.message)}</span>`; }
+    const box = (stage.match(/box:(\S+)x(\d+)/) || []); const cls = stage.split(" ").filter(x => x && !x.startsWith("box")).join(" ");
+    const style = box[0] ? `style="width:${/%/.test(box[1]) ? box[1] : box[1] + "px"};height:${box[2]}px;margin:0 auto"` : "";
+    return `<div class="comp"><div class="stage"><div class="sky ${cls}${box[0] ? " box" : ""}" ${style}>${html}</div></div><div class="info"><h3>${esc(name)} <code>SkydioUI.${esc(name)}</code></h3><p>${esc(note)}</p><pre class="call"><b>${esc(name)}</b>(${esc(args.map(short).join(", "))})</pre><div class="pr">${pr.map(p => `<span title="${esc(K.PRINCIPLES.find(x => x[0] === p)[1])}">${p}</span>`).join("")}</div></div></div>`;
+  }).join("")}</div></section>`).join("");
+document.getElementById("nComp").textContent = new Set(C.map(c => c[1])).size;
+</script>
+
+</html>
